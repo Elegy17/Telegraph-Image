@@ -9,7 +9,7 @@ export async function onRequest(context) {
     
     // 新增防盗链检查 - 开始
     // 使用更美观的防盗链图片
-    const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
+    const HOTLINK_BLOCK_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/私人图床⛔禁止通行.png";
     
     // 检查是否启用了防盗链
     if (env.ALLOWED_DOMAINS) {
@@ -60,7 +60,7 @@ export async function onRequest(context) {
                 }
             } catch (e) {
                 // Referer解析失败视为非法请求
-                console.log(`Invalid Referer format: ${referer}`);
+                console.log(`Invalid Referer format: ${referer}`);  
                 return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
             }
         }
@@ -83,7 +83,7 @@ export async function onRequest(context) {
     // If the response is OK, proceed with further checks
     if (!response.ok) return response;
 
-    // Allow the admin page to directly view the image
+    // Allow the admin page to directly view the image  
     const isAdmin = request.headers.get('Referer')?.includes(`${url.origin}/admin`);
     if (isAdmin) {
         return response;
@@ -141,7 +141,7 @@ export async function onRequest(context) {
 
             if (moderateResponse.ok) {
                 const moderateData = await moderateResponse.json();
-                if (moderateData && moderateData.rating_label) {
+                if (moderateData && moderateData.rating_label) {  
                     metadata.Label = moderateData.rating_label;
                     if (moderateData.rating_label === "adult") {
                         await env.img_url.put(params.id, "", { metadata });
