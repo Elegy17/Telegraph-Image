@@ -33,9 +33,29 @@ export async function onRequest(context) {
         else {
             try {
                 const refererUrl = new URL(referer);
+                const refererHost = refererUrl.hostname;
+                let isAllowed = false;
+                
                 // 检查Referer是否在允许的域名列表中
-                if (!allowedDomains.includes(refererUrl.hostname)) {
-                    console.log(`Referer blocked: ${refererUrl.hostname}`);
+                for (const domain of allowedDomains) {
+                    // 处理通配符域名 (如 *.example.com)
+                    if (domain.startsWith("*.")) {
+                        const baseDomain = domain.slice(2); // 移除开头的 "*."
+                        // 匹配所有子域名和主域名
+                        if (refererHost === baseDomain || refererHost.endsWith(`.${baseDomain}`)) {
+                            isAllowed = true;
+                            break;
+                        }
+                    }
+                    // 精确匹配
+                    else if (refererHost === domain) {
+                        isAllowed = true;
+                        break;
+                    }
+                }
+                
+                if (!isAllowed) {
+                    console.log(`Referer blocked: ${refererHost}`);
                     return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
                 }
             } catch (e) {
