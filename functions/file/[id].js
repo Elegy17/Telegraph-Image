@@ -57,10 +57,10 @@ export async function onRequest(context) {
     // 上传限制 - 结束
     
     // 新增防盗链检查 - 开始
-    const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
+    const HOTLINK_BLOCK_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/私人图床⛔禁止通行.png";
     
     if (env.ALLOWED_DOMAINS) {
-        const allowedDomains = env.ALLOWED_DOMAINS.split(",");
+        const allowedDomains = env.ALLOWED_DOMAINS.split(",");  
         const referer = request.headers.get('Referer');
         const allowEmptyReferer = env.ALLOW_EMPTY_REFERER === "true";
         
@@ -172,7 +172,7 @@ export async function onRequest(context) {
             const moderateResponse = await fetch(moderateUrl);
 
             if (moderateResponse.ok) {
-                const moderateData = await moderateResponse.json();
+                const moderateData = await moderateResponse.json();  
                 if (moderateData && moderateData.rating_label) {
                     metadata.Label = moderateData.rating_label;
                     if (moderateData.rating_label === "adult") {
