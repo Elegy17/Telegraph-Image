@@ -6,55 +6,50 @@ export async function onRequest(context) {
     } = context;
 
     const url = new URL(request.url);
-    const pathname = url.pathname;
+    let fileUrl = 'https://telegra.ph/' + url.pathname + url.search
     
-    // 排除管理后台和上传功能的防盗链检查
-    const isAdminRequest = pathname.startsWith('/admin');
-    const isUploadRequest = pathname === '/upload';
-    
-    if (!isAdminRequest && !isUploadRequest) {
-        // 防盗链检查
-        const allowedDomains = env.ALLOWED_DOMAINS;
-        const allowEmptyReferer = env.ALLOW_EMPTY_REFERER === "true";
-        
-        if (allowedDomains && allowedDomains.trim() !== "") {
-            const domainList = allowedDomains.split(",").map(d => d.trim());
-            
-            const referer = request.headers.get('Referer');
-            console.log(`Referer: ${referer}`);
-            
-            // 处理无Referer的情况
-            if (!referer) {
-                if (!allowEmptyReferer) {
-                    return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
-                }
-            } 
-            // 处理有Referer但不在白名单的情况
-            else {
-                try {
-                    const refererUrl = new URL(referer);
-                    const refererHost = refererUrl.hostname;
-                    
-                    if (!domainList.includes(refererHost)) {
-                        return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
-                    }
-                } catch (e) {
-                    console.error(`Invalid Referer URL: ${referer}`, e);
-                    return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
-                }
-            }
-        }
-    }
-
-    let fileUrl = 'https://telegra.ph/' + url.pathname + url.search;
+    // 处理Telegram Bot API的长路径
     if (url.pathname.length > 39) {
-        console.log(url.pathname.split(".")[0].split("/")[2]);
-        const filePath = await getFilePath(env, url.pathname.split(".")[0].split("/")[2]); 
-        console.log(filePath);
+        const formdata = new FormData();
+        formdata.append("file_id", url.pathname);
+
+        const requestOptions = {
+            method: "POST",
+            body: formdata,
+            redirect: "follow"
+        };
+        
+        const filePath = await getFilePath(env, url.pathname.split(".")[0].split("/")[2]);
         fileUrl = `https://api.telegram.org/file/bot${env.TG_Bot_Token}/${filePath}`;
     }
 
-    const response = await fetch(fileUrl, { 
+    // ================= 新增防盗链检查 =================
+    const allowedDomains = env.ALLOWED_DOMAINS;
+    const blockImage = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
+    
+    if (allowedDomains && allowedDomains.trim() !== "") {
+        const domainList = allowedDomains.split(",").map(d => d.trim());
+        const referer = request.headers.get('Referer');
+        
+        // 无Referer或空Referer直接屏蔽
+        if (!referer) {
+            return Response.redirect(blockImage, 302);
+        }
+        
+        try {
+            const refererUrl = new URL(referer);
+            // 不在允许域名列表中则屏蔽
+            if (!domainList.includes(refererUrl.hostname)) {
+                return Response.redirect(blockImage, 302);
+            }
+        } catch (e) {
+            // Referer解析失败也屏蔽
+            return Response.redirect(blockImage, 302);
+        }
+    }
+    // ================= 防盗链结束 =================
+
+    const response = await fetch(fileUrl, {
         method: request.method,
         headers: request.headers,
         body: request.body,
@@ -62,24 +57,20 @@ export async function onRequest(context) {
 
     if (!response.ok) return response;
 
-    console.log(response.ok, response.status);
-
-    // 管理员直接访问
-    const isAdminReferer = request.headers.get('Referer')?.includes(`${url.origin}/admin`);
-    if (isAdminReferer) {
+    // 允许admin页面直接查看图片
+    const isAdmin = request.headers.get('Referer')?.includes(`${url.origin}/admin`);
+    if (isAdmin) {
         return response;
     }
 
     // KV存储检查
     if (!env.img_url) {
-        console.log("KV storage not available, returning image directly");
         return response;
     }
 
     // 元数据处理
     let record = await env.img_url.getWithMetadata(params.id);
     if (!record || !record.metadata) {
-        console.log("Metadata not found, initializing...");
         record = {
             metadata: {
                 ListType: "None",
@@ -102,16 +93,12 @@ export async function onRequest(context) {
         fileSize: record.metadata.fileSize || 0,
     };
 
-    // 内容过滤处理
+    // 黑白名单处理
     if (metadata.ListType === "White") {
         return response;
     } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
-        const referer = request.headers.get('Referer');
-        // 使用第二张图片作为屏蔽内容显示
-        const redirectUrl = referer ? 
-            "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png" : 
-            `${url.origin}/block-img.html`;
-        return Response.redirect(redirectUrl, 302);
+        // 使用新防盗链图片
+        return Response.redirect(blockImage, 302);
     }
 
     // 白名单模式
@@ -122,33 +109,26 @@ export async function onRequest(context) {
     // 内容审核
     if (env.ModerateContentApiKey) {
         try {
-            console.log("Starting content moderation...");
             const moderateUrl = `https://api.moderatecontent.com/moderate/?key=${env.ModerateContentApiKey}&url=https://telegra.ph${url.pathname}${url.search}`;
             const moderateResponse = await fetch(moderateUrl);
 
             if (moderateResponse.ok) {
                 const moderateData = await moderateResponse.json();
-                console.log("Content moderation results:", moderateData);
-
                 if (moderateData?.rating_label) {
                     metadata.Label = moderateData.rating_label;
 
                     if (moderateData.rating_label === "adult") {
-                        console.log("Content marked as adult, saving metadata and redirecting");
                         await env.img_url.put(params.id, "", { metadata });
-                        // 使用第二张图片作为成人内容屏蔽
-                        return Response.redirect(`${url.origin}/block-img.html`, 302);
+                        return Response.redirect(blockImage, 302);
                     }
                 }
-            } else {
-                console.error("Content moderation API request failed: " + moderateResponse.status);
             }
         } catch (error) {
-            console.error("Error during content moderation: " + error.message);
+            console.error("Content moderation error:", error);
         }
     }
 
-    console.log("Saving metadata");
+    // 保存元数据
     await env.img_url.put(params.id, "", { metadata });
 
     return response;
@@ -163,14 +143,11 @@ async function getFilePath(env, file_id) {
             const responseData = await res.json();
             if (responseData.ok && responseData.result) {
                 return responseData.result.file_path;
-            } else {
-                console.error('Error in response data:', responseData);
             }
-        } else {
-            console.error(`HTTP error! status: ${res.status}`);
         }
+        return null;
     } catch (error) {
-        console.error('Error fetching file path:', error.message);
+        console.error('File path error:', error);
+        return null;
     }
-    return null;
 }
