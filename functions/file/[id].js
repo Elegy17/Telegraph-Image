@@ -6,35 +6,42 @@ export async function onRequest(context) {
     } = context;
 
     const url = new URL(request.url);
+    const pathname = url.pathname;
     
-    // 防盗链检查
-    const allowedDomains = env.ALLOWED_DOMAINS;
-    const allowEmptyReferer = env.ALLOW_EMPTY_REFERER === "true";
+    // 排除管理后台和上传功能的防盗链检查
+    const isAdminRequest = pathname.startsWith('/admin');
+    const isUploadRequest = pathname === '/upload';
     
-    if (allowedDomains && allowedDomains.trim() !== "") {
-        const domainList = allowedDomains.split(",").map(d => d.trim());
+    if (!isAdminRequest && !isUploadRequest) {
+        // 防盗链检查
+        const allowedDomains = env.ALLOWED_DOMAINS;
+        const allowEmptyReferer = env.ALLOW_EMPTY_REFERER === "true";
         
-        const referer = request.headers.get('Referer');
-        console.log(`Referer: ${referer}`);
-        
-        // 处理无Referer的情况
-        if (!referer) {
-            if (!allowEmptyReferer) {
-                return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
-            }
-        } 
-        // 处理有Referer但不在白名单的情况
-        else {
-            try {
-                const refererUrl = new URL(referer);
-                const refererHost = refererUrl.hostname;
-                
-                if (!domainList.includes(refererHost)) {
+        if (allowedDomains && allowedDomains.trim() !== "") {
+            const domainList = allowedDomains.split(",").map(d => d.trim());
+            
+            const referer = request.headers.get('Referer');
+            console.log(`Referer: ${referer}`);
+            
+            // 处理无Referer的情况
+            if (!referer) {
+                if (!allowEmptyReferer) {
                     return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
                 }
-            } catch (e) {
-                console.error(`Invalid Referer URL: ${referer}`, e);
-                return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
+            } 
+            // 处理有Referer但不在白名单的情况
+            else {
+                try {
+                    const refererUrl = new URL(referer);
+                    const refererHost = refererUrl.hostname;
+                    
+                    if (!domainList.includes(refererHost)) {
+                        return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
+                    }
+                } catch (e) {
+                    console.error(`Invalid Referer URL: ${referer}`, e);
+                    return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
+                }
             }
         }
     }
@@ -58,8 +65,8 @@ export async function onRequest(context) {
     console.log(response.ok, response.status);
 
     // 管理员直接访问
-    const isAdmin = request.headers.get('Referer')?.includes(`${url.origin}/admin`);
-    if (isAdmin) {
+    const isAdminReferer = request.headers.get('Referer')?.includes(`${url.origin}/admin`);
+    if (isAdminReferer) {
         return response;
     }
 
