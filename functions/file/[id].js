@@ -156,7 +156,7 @@ export async function onRequest(context) {
         return response;
     } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
         const referer = request.headers.get('Referer');
-        const redirectUrl = referer ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : `${url.origin}/block-img.html`;
+        const redirectUrl = referer ? "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/私人图床🚫未通过审查.png" : `${url.origin}/block-img.html`;
         return Response.redirect(redirectUrl, 302);
     }
 
