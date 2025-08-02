@@ -1,33 +1,334 @@
 <!DOCTYPE html>
-<html class="no-js" lang="en-US" style="
-    height: 100%;
-">
+<html lang="zh-CN">
 <head>
-<title>WhiteList Mode is ON| Telegraph-Image</title>
-<meta charset="UTF-8">
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta http-equiv="X-UA-Compatible" content="IE=Edge">
-<meta name="robots" content="noindex, nofollow">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<script src="https://js.sentry-cdn.com/219f636ac7bde5edab2c3e16885cb535.min.js" crossorigin="anonymous"></script>
-<style>body{margin:0;padding:0}</style>
-
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>白名单模式已启用 | Telegraph-Image</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://js.sentry-cdn.com/219f636ac7bde5edab2c3e16885cb535.min.js" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-light: #4cc9f0;
+            --secondary: #7209b7;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+            --success: #4caf50;
+            --border-radius: 12px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f0f4ff, #e6f7ff);
+            color: var(--dark);
+            line-height: 1.6;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 40px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+        }
+        
+        .icon-container {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            font-size: 48px;
+        }
+        
+        h1 {
+            color: var(--primary);
+            font-size: 32px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .message {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .message p {
+            margin: 15px 0;
+            font-size: 18px;
+            color: var(--dark);
+        }
+        
+        .cn-message {
+            font-weight: 500;
+            font-size: 19px;
+        }
+        
+        .en-message {
+            color: var(--gray);
+            font-style: italic;
+        }
+        
+        .progress-container {
+            width: 100%;
+            max-width: 400px;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 30px auto;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            width: 45%;
+            background: linear-gradient(90deg, var(--primary-light), var(--primary));
+            border-radius: 4px;
+            animation: progress-animation 2s infinite ease-in-out;
+        }
+        
+        @keyframes progress-animation {
+            0% { width: 45%; }
+            50% { width: 65%; }
+            100% { width: 45%; }
+        }
+        
+        .status-text {
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 16px;
+            margin-top: 15px;
+        }
+        
+        .footer {
+            color: var(--gray);
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+            position: relative;
+        }
+        
+        .footer a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: var(--transition);
+        }
+        
+        .footer a:hover {
+            color: var(--secondary);
+        }
+        
+        .footer a:hover::after {
+            width: 100%;
+        }
+        
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(67, 97, 238, 0.4);
+        }
+        
+        .btn-secondary {
+            background-color: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        
+        .btn-secondary:hover {
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+        
+        @media (max-width: 768px) {
+            .card {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 28px;
+            }
+            
+            .message p {
+                font-size: 16px;
+            }
+            
+            .icon-container {
+                width: 80px;
+                height: 80px;
+                font-size: 36px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
 </head>
-<body style="
-    height: 100%;
-">
-    <div style="display: flex;flex-direction: column;align-content: center;justify-content: center;align-items: center;height: 100%;text-align: center;">
-<div>
-    抱歉，当前已开启白名单模式，上传的图片需要审核通过后才能展示，请等待审核通过后再进行访问。
-    <br>
-    Sorry, the whitelist mode is currently enabled, the uploaded images need to be audited before they can be displayed, please wait for the audit to be passed before visiting.
-</div>
-<br>
-<div>Powered By: <span><a style="
-    color: cornflowerblue;"
-    href="https://github.com/cf-pages/Telegraph-Image">Telegraph-Image</a></span></div>
-</div>
-
-
-</body></html>
+<body>
+    <div class="container">
+        <div class="card pulse">
+            <div class="icon-container">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            
+            <h1>白名单模式已启用</h1>
+            
+            <div class="message">
+                <p class="cn-message">抱歉，当前已开启白名单模式，上传的图片需要审核通过后才能展示，请等待审核通过后再进行访问。</p>
+                <p class="en-message">Sorry, the whitelist mode is currently enabled. Uploaded images need to be audited before they can be displayed. Please wait for the audit to pass before visiting.</p>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-bar"></div>
+            </div>
+            
+            <p class="status-text">审核进行中 - 请耐心等待</p>
+            
+            <div class="action-buttons">
+                <button class="btn btn-primary">
+                    <i class="fas fa-sync-alt"></i> 刷新状态
+                </button>
+                <button class="btn btn-secondary">
+                    <i class="fas fa-question-circle"></i> 了解更多
+                </button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Powered By: <a href="https://github.com/cf-pages/Telegraph-Image">Telegraph-Image</a>
+        </div>
+    </div>
+    
+    <script>
+        // 简单的状态更新效果
+        document.querySelector('.btn-primary').addEventListener('click', function() {
+            const statusText = document.querySelector('.status-text');
+            statusText.textContent = "正在检查审核状态...";
+            statusText.style.color = "#4361ee";
+            
+            setTimeout(() => {
+                statusText.textContent = "审核仍在进行中 - 请稍后再试";
+                statusText.style.color = "#4361ee";
+                
+                // 添加动画效果
+                statusText.classList.add('pulse');
+                setTimeout(() => {
+                    statusText.classList.remove('pulse');
+                }, 1000);
+            }, 1500);
+        });
+        
+        // 模拟进度条动画
+        function animateProgressBar() {
+            const progressBar = document.querySelector('.progress-bar');
+            let width = 45;
+            let increasing = true;
+            
+            setInterval(() => {
+                if (increasing) {
+                    width += 0.5;
+                    if (width >= 65) increasing = false;
+                } else {
+                    width -= 0.5;
+                    if (width <= 45) increasing = true;
+                }
+                progressBar.style.width = width + '%';
+            }, 100);
+        }
+        
+        animateProgressBar();
+    </script>
+</body>
+</html>
