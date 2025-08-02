@@ -311,7 +311,7 @@
             </div>
             
             <div class="action-buttons">
-                <button class="btn btn-primary">
+                <button id="homeBtn" class="btn btn-primary">
                     <i class="fas fa-home"></i> 返回首页
                 </button>
                 <button class="btn btn-secondary">
@@ -324,7 +324,7 @@
         </div>
         
         <div class="footer">
-            Powered By: <a href="https://github.com/cf-pages/Telegraph-Image">Telegraph-Image</a>
+            Powered By: <a href="https://github.com/Elegy17/Telegraph-Image">Telegraph-Image</a>
         </div>
     </div>
     
@@ -347,11 +347,7 @@
                         this.classList.remove('shake');
                     }, 500);
                     
-                    if(this.querySelector('.fa-home')) {
-                        // 返回首页
-                        alert('即将返回首页...');
-                    }
-                    else if(this.querySelector('.fa-question-circle')) {
+                    if(this.querySelector('.fa-question-circle')) {
                         // 查看政策
                         const policyBox = document.querySelector('.warning-box');
                         policyBox.style.backgroundColor = 'rgba(230, 57, 70, 0.05)';
@@ -369,10 +365,27 @@
                 });
             });
             
-            // 高亮政策关键词
-            const highlights = document.querySelectorAll('.policy-highlight');
-            highlights.forEach(hl => {
-                hl.style.animationDelay = `${Math.random() * 0.5}s`;
+            // 返回首页按钮功能（修复版）
+            document.getElementById('homeBtn').addEventListener('click', function() {
+                // 获取当前页面的URL
+                const currentUrl = window.location.href;
+                
+                // 解析URL
+                const urlObj = new URL(currentUrl);
+                
+                // 获取路径部分（例如：/xxx/blocked.html）
+                const pathname = urlObj.pathname;
+                
+                // 获取上一级目录路径（去掉文件名部分）
+                const pathSegments = pathname.split('/');
+                pathSegments.pop(); // 移除文件名部分
+                const basePath = pathSegments.join('/') + '/';
+                
+                // 构建主页URL
+                const homeUrl = urlObj.origin + basePath;
+                
+                // 跳转到主页
+                window.location.href = homeUrl;
             });
         });
     </script>
