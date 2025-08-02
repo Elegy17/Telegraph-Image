@@ -35,16 +35,53 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            position: relative;
+        }
+        
+        /* 背景装饰 */
+        .bg-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(230, 57, 70, 0.05) 0%, rgba(230, 57, 70, 0) 70%);
+            z-index: -1;
+            opacity: 0.6;
+        }
+        
+        .bg-pattern::before {
+            content: '';
+            position: absolute;
+            top: 20%;
+            right: 10%;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(230, 57, 70, 0.1) 0%, rgba(230, 57, 70, 0) 70%);
+        }
+        
+        .bg-pattern::after {
+            content: '';
+            position: absolute;
+            bottom: 15%;
+            left: 10%;
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(230, 57, 70, 0.08) 0%, rgba(230, 57, 70, 0) 70%);
         }
         
         .container {
             max-width: 800px;
             width: 100%;
             text-align: center;
+            z-index: 1;
         }
         
         .card {
-            background: white;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(8px);
             border-radius: var(--border-radius);
             box-shadow: var(--box-shadow);
             padding: 40px;
@@ -52,7 +89,7 @@
             position: relative;
             overflow: hidden;
             transition: var(--transition);
-            border: 1px solid rgba(230, 57, 70, 0.2);
+            border: 1px solid rgba(230, 57, 70, 0.1);
         }
         
         .card::before {
@@ -77,6 +114,14 @@
             color: white;
             font-size: 60px;
             box-shadow: 0 8px 20px rgba(230, 57, 70, 0.3);
+            transition: var(--transition);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 8px 20px rgba(230, 57, 70, 0.3); }
+            50% { transform: scale(1.05); box-shadow: 0 10px 25px rgba(230, 57, 70, 0.4); }
+            100% { transform: scale(1); box-shadow: 0 8px 20px rgba(230, 57, 70, 0.3); }
         }
         
         h1 {
@@ -84,19 +129,20 @@
             font-size: 36px;
             margin-bottom: 20px;
             font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         
         .message {
             margin-bottom: 30px;
             text-align: center;
-            padding: 0 10px;
+            padding: 0 20px;
         }
         
         .message p {
             margin: 20px 0;
             font-size: 18px;
             color: var(--dark);
-            line-height: 1.8;
+            line-height: 1.7;
         }
         
         .cn-message {
@@ -115,6 +161,8 @@
             padding: 15px 20px;
             background-color: rgba(230, 57, 70, 0.03);
             border-radius: 10px;
+            margin-top: 25px;
+            border-top: 1px dashed rgba(108, 117, 125, 0.2);
         }
         
         .warning-box {
@@ -124,6 +172,7 @@
             margin: 30px 0;
             border: 1px dashed var(--primary-light);
             text-align: left;
+            transition: var(--transition);
         }
         
         .warning-box h3 {
@@ -158,6 +207,10 @@
             color: var(--gray);
             font-size: 16px;
             margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
         }
         
         .footer a {
@@ -190,13 +243,11 @@
         .action-buttons {
             display: flex;
             justify-content: center;
-            gap: 15px;
             margin-top: 30px;
-            flex-wrap: wrap;
         }
         
         .btn {
-            padding: 14px 28px;
+            padding: 14px 40px;
             border-radius: 50px;
             font-weight: 600;
             cursor: pointer;
@@ -219,34 +270,9 @@
             box-shadow: 0 7px 20px rgba(230, 57, 70, 0.4);
         }
         
-        .btn-secondary {
-            background-color: white;
-            color: var(--primary);
-            border: 2px solid var(--primary);
-        }
-        
-        .btn-secondary:hover {
-            background-color: rgba(230, 57, 70, 0.05);
-        }
-        
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.03); }
-            100% { transform: scale(1); }
-        }
-        
-        .shake {
-            animation: shake 0.5s ease-in-out;
-        }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-8px); }
-            75% { transform: translateX(8px); }
+        .btn-loading {
+            background: linear-gradient(135deg, #c0313d, #7a0215);
+            cursor: not-allowed;
         }
         
         @media (max-width: 768px) {
@@ -268,27 +294,41 @@
                 font-size: 40px;
             }
             
-            .action-buttons {
-                flex-direction: column;
-                gap: 12px;
-            }
-            
             .btn {
                 width: 100%;
                 justify-content: center;
+                padding: 14px 20px;
+            }
+            
+            .warning-box {
+                padding: 15px;
             }
         }
         
-        .policy-highlight {
-            background: linear-gradient(transparent 60%, rgba(230, 57, 70, 0.2) 40%);
-            font-weight: 600;
-            padding: 0 5px;
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .rotate {
+            animation: rotate 1.5s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
+    <div class="bg-pattern"></div>
+    
     <div class="container">
-        <div class="card pulse">
+        <div class="card fade-in">
             <div class="icon-container">
                 <i class="fas fa-ban"></i>
             </div>
@@ -314,59 +354,34 @@
                 <button id="homeBtn" class="btn btn-primary">
                     <i class="fas fa-home"></i> 返回首页
                 </button>
-                <button class="btn btn-secondary">
-                    <i class="fas fa-question-circle"></i> 审核政策详情
-                </button>
-                <button class="btn btn-secondary">
-                    <i class="fas fa-redo-alt"></i> 重新上传图片
-                </button>
             </div>
         </div>
         
         <div class="footer">
-            Powered By: <a href="https://github.com/Elegy17/Telegraph-Image">Telegraph-Image</a>
+            <div>Powered By: <a href="https://github.com/Elegy17/Telegraph-Image">Telegraph-Image</a></div>
+            <div style="font-size: 14px; opacity: 0.7;">内容安全系统正在保护您的平台</div>
         </div>
     </div>
     
     <script>
-        // 添加交互效果
         document.addEventListener('DOMContentLoaded', function() {
-            const card = document.querySelector('.card');
-            const buttons = document.querySelectorAll('.btn');
+            const homeBtn = document.getElementById('homeBtn');
             
-            // 卡片加载动画
-            setTimeout(() => {
-                card.classList.add('pulse');
-            }, 300);
-            
-            // 按钮点击效果
-            buttons.forEach(button => {
-                button.addEventListener('click', function() {
-                    this.classList.add('shake');
-                    setTimeout(() => {
-                        this.classList.remove('shake');
-                    }, 500);
-                    
-                    if(this.querySelector('.fa-question-circle')) {
-                        // 查看政策
-                        const policyBox = document.querySelector('.warning-box');
-                        policyBox.style.backgroundColor = 'rgba(230, 57, 70, 0.05)';
-                        setTimeout(() => {
-                            policyBox.style.backgroundColor = '';
-                        }, 1000);
-                    }
-                    else if(this.querySelector('.fa-redo-alt')) {
-                        // 重新上传
-                        card.classList.remove('pulse');
-                        setTimeout(() => {
-                            card.classList.add('pulse');
-                        }, 100);
-                    }
-                });
-            });
-            
-            // 返回首页按钮功能（修复版）
-            document.getElementById('homeBtn').addEventListener('click', function() {
+            // 返回首页功能
+            homeBtn.addEventListener('click', function() {
+                // 保存原始内容
+                const originalHTML = this.innerHTML;
+                
+                // 更新按钮状态
+                this.innerHTML = '<i class="fas fa-circle-notch rotate"></i> 正在返回首页...';
+                this.classList.add('btn-loading');
+                this.disabled = true;
+                
+                // 更新状态文本
+                const warningBox = document.querySelector('.warning-box');
+                warningBox.innerHTML = '<h3><i class="fas fa-spinner rotate"></i> 正在处理请求</h3><p>即将带您返回图床首页...</p>';
+                warningBox.style.textAlign = 'center';
+                
                 // 获取当前页面的URL
                 const currentUrl = window.location.href;
                 
@@ -384,8 +399,10 @@
                 // 构建主页URL
                 const homeUrl = urlObj.origin + basePath;
                 
-                // 跳转到主页
-                window.location.href = homeUrl;
+                // 延迟跳转，让用户看到状态变化
+                setTimeout(() => {
+                    window.location.href = homeUrl;
+                }, 800);
             });
         });
     </script>
