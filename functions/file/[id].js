@@ -45,7 +45,7 @@ export async function onRequest(context) {
         }
     }
 
-    // 2. 图片处理逻辑 - 提前获取图片
+    // 2. 图片处理逻辑
     let fileUrl = 'https://telegra.ph/' + url.pathname + url.search;
     
     // 处理Telegram Bot上传的文件
@@ -110,7 +110,7 @@ export async function onRequest(context) {
 
     // 6. 图片黑白名单处理
     if (metadata.ListType === "White") {
-        // 修复：白名单图片直接返回，跳过所有后续检查
+        // 白名单图片直接返回
         return response;
     } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
         const referer = request.headers.get('Referer');
@@ -121,7 +121,7 @@ export async function onRequest(context) {
         return Response.redirect(redirectUrl, 302);
     }
 
-    // 7. 全局白名单模式检查（审核模式）
+    // 7. 全局白名单模式处理
     if (env.WhiteList_Mode && env.WhiteList_Mode === "true") {
         const referer = request.headers.get('Referer');
         // 使用您提供的等待审核图片
@@ -137,10 +137,13 @@ export async function onRequest(context) {
         }
     }
 
-    // 8. 双模式防盗链系统 - 放在内容检查之后
-    const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
+    // 8. 双模式防盗链系统
     const HOTLINK_MODE = (env.HOTLINK_MODE || "WHITELIST").toUpperCase();
     const EMPTY_REFERER_ACTION = (env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase();
+    
+    // 自定义图片
+    const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
+    const REDIRECT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_070454.png";
     
     if (HOTLINK_MODE === "WHITELIST" || HOTLINK_MODE === "BLACKLIST") {
         const referer = request.headers.get('Referer');
@@ -149,11 +152,29 @@ export async function onRequest(context) {
         if (!referer) {
             switch(EMPTY_REFERER_ACTION) {
                 case "ALLOW":
+                    // ALLOW模式：继续处理请求
                     break;
+                    
                 case "REDIRECT":
-                    return Response.redirect(url.origin, 302);
+                    // REDIRECT模式：浏览器访问重定向到首页，MD显示图片
+                    // 判断访问类型
+                    const userAgent = request.headers.get('User-Agent') || '';
+                    const isBrowser = userAgent.includes('Mozilla') && 
+                                     !userAgent.includes('bot') && 
+                                     !userAgent.includes('Discord') && 
+                                     !userAgent.includes('Telegram');
+                    
+                    if (isBrowser) {
+                        // 浏览器直接访问：重定向到首页
+                        return Response.redirect(url.origin, 302);
+                    } else {
+                        // MD等软件：显示重定向图片
+                        return Response.redirect(REDIRECT_IMAGE, 302);
+                    }
+                    
                 case "BLOCK":
                 default:
+                    // BLOCK模式：显示防盗链图片
                     return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
             }
         } 
