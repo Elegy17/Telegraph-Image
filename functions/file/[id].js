@@ -25,7 +25,103 @@ export async function onRequest(context) {
         }
     }
 
-    // ====== 2. 防盗链控制 ======
+    // ====== 2. 生成 fileUrl（不修改） ======
+    let fileUrl = 'https://telegra.ph' + url.pathname + url.search;
+
+    const pathParts = url.pathname.split("/");
+    const fileId = pathParts.length > 2 ? pathParts[2].split(".")[0] : null;
+
+    if (fileId) {
+        const filePath = await getFilePath(env, fileId);
+        if (filePath) {
+            fileUrl = `https://api.telegram.org/file/bot${env.TG_Bot_Token}/${filePath}`;
+        }
+    }
+
+    // ====== 3. 管理员请求绕过所有检查 ======
+    const isAdmin = referer?.includes(`${url.origin}/admin`);
+    if (isAdmin) {
+        return fetch(fileUrl, {
+            method: request.method,
+            headers: request.headers,
+            body: request.body,
+        });
+    }
+
+    // ====== 4. 请求目标图片 ======
+    const response = await fetch(fileUrl, {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+    });
+
+    if (!response.ok) {
+        return response;
+    }
+
+    // ====== 5. KV 元数据处理 ======
+    if (!env.img_url) {
+        return response;
+    }
+
+    let record = await env.img_url.getWithMetadata(params.id);
+    if (!record || !record.metadata) {
+        record = {
+            metadata: {
+                ListType: "None",
+                Label: "None",
+                TimeStamp: Date.now(),
+                liked: false,
+                fileName: params.id,
+                fileSize: 0,
+            }
+        };
+        await env.img_url.put(params.id, "", { metadata: record.metadata });
+    }
+
+    let metadata = {
+        ListType: record.metadata.ListType ?? "None",
+        Label: record.metadata.Label ?? "None",
+        TimeStamp: record.metadata.TimeStamp ?? Date.now(),
+        liked: record.metadata.liked ?? false,
+        fileName: record.metadata.fileName ?? params.id,
+        fileSize: record.metadata.fileSize ?? 0,
+    };
+
+    // ====== 6. 黑名单或敏感内容屏蔽逻辑（优先于防盗链） ======
+    if (metadata.ListType === "White") {
+        return response;
+    } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
+        const redirectUrl = referer ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : `${url.origin}/block-img.html`;
+        return Response.redirect(redirectUrl, 302);
+    }
+
+    // ====== 7. 全局白名单开关检查 ======
+    if (env.WhiteList_Mode && env.WhiteList_Mode === "true") {
+        return Response.redirect(`${url.origin}/whitelist-on.html`, 302);
+    }
+
+    // ====== 8. 内容审核（如果启用） ======
+    if (env.ModerateContentApiKey) {
+        try {
+            const moderateUrl = `https://api.moderatecontent.com/moderate/?key=${env.ModerateContentApiKey}&url=${encodeURIComponent(fileUrl)}`;
+            const moderateResponse = await fetch(moderateUrl);
+            if (moderateResponse.ok) {
+                const moderateData = await moderateResponse.json();
+                if (moderateData?.rating_label) {
+                    metadata.Label = moderateData.rating_label;
+                    if (moderateData.rating_label === "adult") {
+                        await env.img_url.put(params.id, "", { metadata });
+                        return Response.redirect(`${url.origin}/block-img.html`, 302);
+                    }
+                }
+            }
+        } catch (_) {
+            // 忽略内容审核失败
+        }
+    }
+
+    // ====== 9. 防盗链检查（延后执行） ======
     const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
     const HOTLINK_MODE = (env.HOTLINK_MODE || "WHITELIST").toUpperCase();
     const EMPTY_REFERER_ACTION = (env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase();
@@ -60,103 +156,7 @@ export async function onRequest(context) {
         }
     }
 
-    // ====== 3. 生成 fileUrl（不修改） ======
-    let fileUrl = 'https://telegra.ph' + url.pathname + url.search;
-
-    const pathParts = url.pathname.split("/");
-    const fileId = pathParts.length > 2 ? pathParts[2].split(".")[0] : null;
-
-    if (fileId) {
-        const filePath = await getFilePath(env, fileId);
-        if (filePath) {
-            fileUrl = `https://api.telegram.org/file/bot${env.TG_Bot_Token}/${filePath}`;
-        }
-    }
-
-    // ====== 4. 管理员请求绕过所有检查 ======
-    const isAdmin = referer?.includes(`${url.origin}/admin`);
-    if (isAdmin) {
-        return fetch(fileUrl, {
-            method: request.method,
-            headers: request.headers,
-            body: request.body,
-        });
-    }
-
-    // ====== 5. 请求目标图片 ======
-    const response = await fetch(fileUrl, {
-        method: request.method,
-        headers: request.headers,
-        body: request.body,
-    });
-
-    if (!response.ok) {
-        return response;
-    }
-
-    // ====== 6. 读取 KV 元数据 ======
-    if (!env.img_url) {
-        return response;
-    }
-
-    let record = await env.img_url.getWithMetadata(params.id);
-    if (!record || !record.metadata) {
-        record = {
-            metadata: {
-                ListType: "None",
-                Label: "None",
-                TimeStamp: Date.now(),
-                liked: false,
-                fileName: params.id,
-                fileSize: 0,
-            }
-        };
-        await env.img_url.put(params.id, "", { metadata: record.metadata });
-    }
-
-    let metadata = {
-        ListType: record.metadata.ListType ?? "None",
-        Label: record.metadata.Label ?? "None",
-        TimeStamp: record.metadata.TimeStamp ?? Date.now(),
-        liked: record.metadata.liked ?? false,
-        fileName: record.metadata.fileName ?? params.id,
-        fileSize: record.metadata.fileSize ?? 0,
-    };
-
-    // ====== 7. 黑名单或敏感内容屏蔽逻辑 ======
-    if (metadata.ListType === "White") {
-        return response;
-    } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
-        const redirectUrl = referer ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : `${url.origin}/block-img.html`;
-        return Response.redirect(redirectUrl, 302);
-    }
-
-    // ====== 8. 全局白名单开关检查 ======
-    if (env.WhiteList_Mode && env.WhiteList_Mode === "true") {
-        return Response.redirect(`${url.origin}/whitelist-on.html`, 302);
-    }
-
-    // ====== 9. 内容审核（如果开启） ======
-    if (env.ModerateContentApiKey) {
-        try {
-            const moderateUrl = `https://api.moderatecontent.com/moderate/?key=${env.ModerateContentApiKey}&url=${encodeURIComponent(fileUrl)}`;
-            const moderateResponse = await fetch(moderateUrl);
-            if (moderateResponse.ok) {
-                const moderateData = await moderateResponse.json();
-                if (moderateData?.rating_label) {
-                    metadata.Label = moderateData.rating_label;
-                    if (moderateData.rating_label === "adult") {
-                        await env.img_url.put(params.id, "", { metadata });
-                        return Response.redirect(`${url.origin}/block-img.html`, 302);
-                    }
-                }
-            }
-        } catch (_) {
-            // 忽略内容审核失败
-        }
-    }
-
-    // ====== 10. 最终返回并更新元数据（如果修改过） ======
+    // ====== 10. 最终写入元数据并返回 ======
     await env.img_url.put(params.id, "", { metadata });
     return response;
 }
