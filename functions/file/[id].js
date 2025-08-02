@@ -45,7 +45,7 @@ export async function onRequest(context) {
         }
     }
 
-    // 3. 图片处理逻辑 - 提前获取图片信息
+    // 2. 图片处理逻辑 - 提前获取图片
     let fileUrl = 'https://telegra.ph/' + url.pathname + url.search;
     
     // 处理Telegram Bot上传的文件
@@ -71,18 +71,18 @@ export async function onRequest(context) {
         return response;
     }
 
-    // 4. 管理员绕过检查
+    // 3. 管理员绕过检查
     const isAdmin = request.headers.get('Referer')?.includes(`${url.origin}/admin`);
     if (isAdmin) {
         return response;
     }
 
-    // 5. KV存储检查
+    // 4. KV存储检查
     if (!env.img_url) {
         return response;
     }
 
-    // 6. 元数据处理 - 提前检查内容标记
+    // 5. 元数据处理
     let record = await env.img_url.getWithMetadata(params.id);
     
     if (!record || !record.metadata) {
@@ -108,8 +108,11 @@ export async function onRequest(context) {
         fileSize: record.metadata.fileSize || 0,
     };
 
-    // 7. 图片黑白名单处理 - 优先级最高
-    if (metadata.ListType === "Block" || metadata.Label === "adult") {
+    // 6. 图片黑白名单处理
+    if (metadata.ListType === "White") {
+        // 修复：白名单图片直接返回，跳过所有后续检查
+        return response;
+    } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
         const referer = request.headers.get('Referer');
         // 内容拦截图片
         const redirectUrl = referer 
@@ -118,7 +121,23 @@ export async function onRequest(context) {
         return Response.redirect(redirectUrl, 302);
     }
 
-    // 2. 双模式防盗链系统 - 移到内容检查之后
+    // 7. 全局白名单模式检查（审核模式）
+    if (env.WhiteList_Mode && env.WhiteList_Mode === "true") {
+        const referer = request.headers.get('Referer');
+        // 使用您提供的等待审核图片
+        const WAIT_FOR_REVIEW_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_052417.png";
+        
+        // 有Referer时返回图片（适合MD嵌入）
+        if (referer) {
+            return Response.redirect(WAIT_FOR_REVIEW_IMAGE, 302);
+        } 
+        // 无Referer时返回HTML页面（适合直接访问）
+        else {
+            return Response.redirect(`${url.origin}/whitelist-on.html`, 302);
+        }
+    }
+
+    // 8. 双模式防盗链系统 - 放在内容检查之后
     const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
     const HOTLINK_MODE = (env.HOTLINK_MODE || "WHITELIST").toUpperCase();
     const EMPTY_REFERER_ACTION = (env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase();
@@ -198,11 +217,6 @@ export async function onRequest(context) {
                 return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
             }
         }
-    }
-
-    // 8. 全局白名单模式检查
-    if (env.WhiteList_Mode && env.WhiteList_Mode === "true") {
-        return Response.redirect(`${url.origin}/whitelist-on.html`, 302);
     }
 
     // 9. 内容审核
