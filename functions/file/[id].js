@@ -46,7 +46,7 @@ export async function onRequest(context) {
     }
     
     // 2. 双模式防盗链系统
-    const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
+    const HOTLINK_BLOCK_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/私人图床⛔禁止通行.png";
     const HOTLINK_MODE = (env.HOTLINK_MODE || "WHITELIST").toUpperCase();
     const EMPTY_REFERER_ACTION = (env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase();
     
@@ -195,7 +195,7 @@ export async function onRequest(context) {
         return response;
     } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
         const referer = request.headers.get('Referer');
-        const redirectUrl = referer ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : `${url.origin}/block-img.html`;
+        const redirectUrl = referer ? "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/私人图床🚫未通过审查.png" : `${url.origin}/block-img.html`;
         return Response.redirect(redirectUrl, 302);
     }
 
@@ -207,8 +207,8 @@ export async function onRequest(context) {
     // 9. 内容审核
     if (env.ModerateContentApiKey) {
         try {
-            const moderateUrl = `https://api.moderatecontent.com/moderate/?key=${env.ModerateContentApiKey}&url=https://telegra.ph${url.pathname}${url.search}`;
-            const moderateResponse = await fetch(moderateUrl);
+            const moderateUrl = `https://api.moderatecontent.com/moderate/?key=${env.ModerateContentApiKey}&url=https://telegra.ph${url.pathname}${url.search}`;      
+            const moderateResponse = await fetch(moderateUrl);  
 
             if (moderateResponse.ok) {
                 const moderateData = await moderateResponse.json();
