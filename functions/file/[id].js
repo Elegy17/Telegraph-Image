@@ -88,17 +88,25 @@ export async function onRequest(context) {
         fileSize: record.metadata.fileSize ?? 0,
     };
 
-    // ====== 6. 黑名单或敏感内容屏蔽逻辑（优先于防盗链） ======
+    // ====== 6. 白名单审核流程逻辑 ======
+    const WhiteList_Mode = env.WhiteList_Mode === "true";
+
+    if (WhiteList_Mode) {
+        if (metadata.Label === "None") {
+            return Response.redirect(`${url.origin}/whitelist-on.html`, 302);
+        }
+        if (metadata.Label === "fail") {
+            const redirectUrl = referer ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : `${url.origin}/block-img.html`;
+            return Response.redirect(redirectUrl, 302);
+        }
+    }
+
+    // ====== 7. 黑名单或敏感内容屏蔽逻辑（优先于防盗链） ======
     if (metadata.ListType === "White") {
         return response;
     } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
         const redirectUrl = referer ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : `${url.origin}/block-img.html`;
         return Response.redirect(redirectUrl, 302);
-    }
-
-    // ====== 7. 全局白名单开关检查 ======
-    if (env.WhiteList_Mode && env.WhiteList_Mode === "true") {
-        return Response.redirect(`${url.origin}/whitelist-on.html`, 302);
     }
 
     // ====== 8. 内容审核（如果启用） ======
