@@ -7,11 +7,16 @@ export async function onRequest(context) {
 
     const url = new URL(request.url);
     const method = request.method;
-    const referer = request.headers.get('Referer');
+    const origin = url.origin;
+    
+    // 管理员检查（放在最前面）
+    const refererHeader = request.headers.get('Referer');
+    const isAdmin = refererHeader && refererHeader.includes(`${origin}/admin`);
     
     // 1. 上传限制功能
-    if (method === "POST" && env.UPLOAD_DOMAINS) {
+    if (method === "POST" && env.UPLOAD_DOMAINS && !isAdmin) {
         const domains = env.UPLOAD_DOMAINS.split(",");
+        const referer = refererHeader;
         
         if (!referer) {
             return new Response('权限不足', { status: 403 });
@@ -50,17 +55,17 @@ export async function onRequest(context) {
     const HOTLINK_MODE = (env.HOTLINK_MODE || "WHITELIST").toUpperCase();
     const EMPTY_REFERER_ACTION = (env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase();
     
-    // 管理员请求绕过防盗链检查
-    const isAdmin = referer && referer.includes(`${url.origin}/admin`);
-    
+    // 如果不是管理员，进行防盗链检查
     if (!isAdmin && (HOTLINK_MODE === "WHITELIST" || HOTLINK_MODE === "BLACKLIST")) {
+        const referer = refererHeader;
+        
         // 处理空Referer
         if (!referer) {
             switch(EMPTY_REFERER_ACTION) {
                 case "ALLOW":
                     break;
                 case "REDIRECT":
-                    return Response.redirect(url.origin, 302);
+                    return Response.redirect(origin, 302);
                 case "BLOCK":
                 default:
                     return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
@@ -93,6 +98,7 @@ export async function onRequest(context) {
                         }
                     }
                     
+                    // 不在白名单中则拦截
                     if (!isAllowed) {
                         shouldBlock = true;
                     }
@@ -154,7 +160,7 @@ export async function onRequest(context) {
         return response;
     }
 
-    // 4. 管理员绕过检查（再次确认）
+    // 如果是管理员，直接返回图片（绕过所有后续检查）
     if (isAdmin) {
         return response;
     }
@@ -194,13 +200,14 @@ export async function onRequest(context) {
     if (metadata.ListType === "White") {
         return response;
     } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
-        const redirectUrl = referer ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : `${url.origin}/block-img.html`;
+        const referer = request.headers.get('Referer');
+        const redirectUrl = referer ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : `${origin}/block-img.html`;
         return Response.redirect(redirectUrl, 302);
     }
 
     // 8. 全局白名单模式
     if (env.WhiteList_Mode === "true") {
-        return Response.redirect(`${url.origin}/whitelist-on.html`, 302);
+        return Response.redirect(`${origin}/whitelist-on.html`, 302);
     }
 
     // 9. 内容审核
@@ -217,7 +224,7 @@ export async function onRequest(context) {
                     
                     if (moderateData.rating_label === "adult") {
                         await env.img_url.put(params.id, "", { metadata });
-                        return Response.redirect(`${url.origin}/block-img.html`, 302);
+                        return Response.redirect(`${origin}/block-img.html`, 302);
                     }
                 }
             }
@@ -226,22 +233,9 @@ export async function onRequest(context) {
         }
     }
 
-    // 10. 返回图片（确保预览而不是下载）
-    const headers = new Headers(response.headers);
-    headers.delete("Content-Disposition"); // 移除下载头
-    
-    // 确保正确的Content-Type
-    if (!headers.has("Content-Type")) {
-        const extension = url.pathname.split('.').pop().toLowerCase();
-        const contentType = getContentType(extension);
-        if (contentType) headers.set("Content-Type", contentType);
-    }
-    
-    return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: headers
-    });
+    // 10. 返回图片
+    await env.img_url.put(params.id, "", { metadata });
+    return response;
 }
 
 // 辅助函数：获取Telegram文件路径
@@ -264,20 +258,4 @@ async function getFilePath(env, file_id) {
     } catch (error) {
         return null;
     }
-}
-
-// 辅助函数：根据扩展名获取Content-Type
-function getContentType(extension) {
-    const types = {
-        "jpg": "image/jpeg",
-        "jpeg": "image/jpeg",
-        "png": "image/png",
-        "gif": "image/gif",
-        "webp": "image/webp",
-        "svg": "image/svg+xml",
-        "ico": "image/x-icon",
-        "bmp": "image/bmp",
-        "tiff": "image/tiff"
-    };
-    return types[extension] || "application/octet-stream";
 }
