@@ -36,16 +36,42 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 背景装饰元素 */
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(67, 97, 238, 0.1) 0%, rgba(67, 97, 238, 0) 70%);
+            z-index: -1;
+        }
+        
+        .bg-circle:nth-child(1) {
+            width: 300px;
+            height: 300px;
+            top: -100px;
+            right: -50px;
+        }
+        
+        .bg-circle:nth-child(2) {
+            width: 400px;
+            height: 400px;
+            bottom: -150px;
+            left: -100px;
         }
         
         .container {
             max-width: 800px;
             width: 100%;
             text-align: center;
+            z-index: 1;
         }
         
         .card {
-            background: white;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
             border-radius: var(--border-radius);
             box-shadow: var(--box-shadow);
             padding: 40px;
@@ -53,11 +79,7 @@
             position: relative;
             overflow: hidden;
             transition: var(--transition);
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(67, 97, 238, 0.1);
         }
         
         .card::before {
@@ -81,6 +103,12 @@
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
             font-size: 48px;
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+            transition: var(--transition);
+        }
+        
+        .icon-container:hover {
+            transform: rotate(15deg) scale(1.1);
         }
         
         h1 {
@@ -88,17 +116,20 @@
             font-size: 32px;
             margin-bottom: 20px;
             font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         
         .message {
             margin-bottom: 30px;
             text-align: center;
+            padding: 0 20px;
         }
         
         .message p {
             margin: 15px 0;
             font-size: 18px;
             color: var(--dark);
+            line-height: 1.7;
         }
         
         .cn-message {
@@ -109,6 +140,9 @@
         .en-message {
             color: var(--gray);
             font-style: italic;
+            padding-top: 10px;
+            border-top: 1px dashed rgba(108, 117, 125, 0.2);
+            margin-top: 20px;
         }
         
         .progress-container {
@@ -119,6 +153,7 @@
             border-radius: 4px;
             overflow: hidden;
             margin: 30px auto;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
         }
         
         .progress-bar {
@@ -140,12 +175,17 @@
             font-weight: 600;
             font-size: 16px;
             margin-top: 15px;
+            transition: var(--transition);
         }
         
         .footer {
             color: var(--gray);
             font-size: 16px;
             margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
         }
         
         .footer a {
@@ -183,7 +223,7 @@
         }
         
         .btn {
-            padding: 12px 25px;
+            padding: 14px 32px;
             border-radius: 50px;
             font-weight: 600;
             cursor: pointer;
@@ -192,7 +232,7 @@
             font-size: 16px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
         
         .btn-primary {
@@ -204,16 +244,26 @@
         .btn-primary:hover {
             transform: translateY(-3px);
             box-shadow: 0 7px 20px rgba(67, 97, 238, 0.4);
+            background: linear-gradient(135deg, #3d55d8, #6708a9);
         }
         
-        .btn-secondary {
-            background-color: white;
-            color: var(--primary);
-            border: 2px solid var(--primary);
+        .pulse {
+            animation: pulse 2s infinite;
         }
         
-        .btn-secondary:hover {
-            background-color: rgba(67, 97, 238, 0.05);
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         @media (max-width: 768px) {
@@ -242,23 +292,22 @@
             .btn {
                 width: 100%;
                 justify-content: center;
+                padding: 14px 20px;
             }
-        }
-        
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+            
+            .bg-circle {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- 背景装饰元素 -->
+    <div class="bg-circle"></div>
+    <div class="bg-circle"></div>
+    
     <div class="container">
-        <div class="card pulse">
+        <div class="card pulse fade-in">
             <div class="icon-container">
                 <i class="fas fa-shield-alt"></i>
             </div>
@@ -277,39 +326,19 @@
             <p class="status-text">审核进行中 - 请耐心等待</p>
             
             <div class="action-buttons">
-                <button class="btn btn-primary">
-                    <i class="fas fa-sync-alt"></i> 刷新状态
-                </button>
-                <button class="btn btn-secondary">
-                    <i class="fas fa-question-circle"></i> 了解更多
+                <button id="homeBtn" class="btn btn-primary">
+                    <i class="fas fa-home"></i> 返回首页
                 </button>
             </div>
         </div>
         
         <div class="footer">
-            Powered By: <a href="https://github.com/Elegy17/Telegraph-Image">Telegraph-Image</a>
+            <div>Powered By: <a href="https://github.com/Elegy17/Telegraph-Image">Telegraph-Image</a></div>
+            <div style="font-size: 14px; opacity: 0.7;">安全审核系统正在保护您的平台</div>
         </div>
     </div>
     
     <script>
-        // 简单的状态更新效果
-        document.querySelector('.btn-primary').addEventListener('click', function() {
-            const statusText = document.querySelector('.status-text');
-            statusText.textContent = "正在检查审核状态...";
-            statusText.style.color = "#4361ee";
-            
-            setTimeout(() => {
-                statusText.textContent = "审核仍在进行中 - 请稍后再试";
-                statusText.style.color = "#4361ee";
-                
-                // 添加动画效果
-                statusText.classList.add('pulse');
-                setTimeout(() => {
-                    statusText.classList.remove('pulse');
-                }, 1000);
-            }, 1500);
-        });
-        
         // 模拟进度条动画
         function animateProgressBar() {
             const progressBar = document.querySelector('.progress-bar');
@@ -328,7 +357,60 @@
             }, 100);
         }
         
-        animateProgressBar();
+        // 返回首页功能
+        document.getElementById('homeBtn').addEventListener('click', function() {
+            // 添加点击效果
+            this.classList.add('pulse');
+            setTimeout(() => {
+                this.classList.remove('pulse');
+            }, 300);
+            
+            // 状态文本更新
+            const statusText = document.querySelector('.status-text');
+            statusText.textContent = "正在返回首页...";
+            statusText.style.color = "#4361ee";
+            
+            // 获取当前页面的URL
+            const currentUrl = window.location.href;
+            
+            // 解析URL
+            const urlObj = new URL(currentUrl);
+            
+            // 获取路径部分（例如：/xxx/blocked.html）
+            const pathname = urlObj.pathname;
+            
+            // 获取上一级目录路径（去掉文件名部分）
+            const pathSegments = pathname.split('/');
+            pathSegments.pop(); // 移除文件名部分
+            const basePath = pathSegments.join('/') + '/';
+            
+            // 构建主页URL
+            const homeUrl = urlObj.origin + basePath;
+            
+            // 延迟跳转，让用户看到状态变化
+            setTimeout(() => {
+                window.location.href = homeUrl;
+            }, 800);
+        });
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            animateProgressBar();
+            
+            // 卡片加载动画
+            setTimeout(() => {
+                document.querySelector('.card').classList.add('pulse');
+            }, 300);
+            
+            // 添加一些动态效果
+            setInterval(() => {
+                const statusText = document.querySelector('.status-text');
+                statusText.style.opacity = 0.7;
+                setTimeout(() => {
+                    statusText.style.opacity = 1;
+                }, 500);
+            }, 3000);
+        });
     </script>
 </body>
 </html>
