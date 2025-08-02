@@ -7,16 +7,11 @@ export async function onRequest(context) {
 
     const url = new URL(request.url);
     const method = request.method;
-    const origin = url.origin;
-    
-    // 管理员检查（放在最前面）
-    const refererHeader = request.headers.get('Referer');
-    const isAdmin = refererHeader && refererHeader.includes(`${origin}/admin`);
     
     // 1. 上传限制功能
-    if (method === "POST" && env.UPLOAD_DOMAINS && !isAdmin) {
+    if (method === "POST" && env.UPLOAD_DOMAINS) {
         const domains = env.UPLOAD_DOMAINS.split(",");
-        const referer = refererHeader;
+        const referer = request.headers.get('Referer');
         
         if (!referer) {
             return new Response('权限不足', { status: 403 });
@@ -55,9 +50,8 @@ export async function onRequest(context) {
     const HOTLINK_MODE = (env.HOTLINK_MODE || "WHITELIST").toUpperCase();
     const EMPTY_REFERER_ACTION = (env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase();
     
-    // 如果不是管理员，进行防盗链检查
-    if (!isAdmin && (HOTLINK_MODE === "WHITELIST" || HOTLINK_MODE === "BLACKLIST")) {
-        const referer = refererHeader;
+    if (HOTLINK_MODE === "WHITELIST" || HOTLINK_MODE === "BLACKLIST") {
+        const referer = request.headers.get('Referer');
         
         // 处理空Referer
         if (!referer) {
@@ -65,7 +59,7 @@ export async function onRequest(context) {
                 case "ALLOW":
                     break;
                 case "REDIRECT":
-                    return Response.redirect(origin, 302);
+                    return Response.redirect(url.origin, 302);
                 case "BLOCK":
                 default:
                     return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
@@ -98,7 +92,6 @@ export async function onRequest(context) {
                         }
                     }
                     
-                    // 不在白名单中则拦截
                     if (!isAllowed) {
                         shouldBlock = true;
                     }
@@ -160,7 +153,8 @@ export async function onRequest(context) {
         return response;
     }
 
-    // 如果是管理员，直接返回图片（绕过所有后续检查）
+    // 4. 管理员绕过检查
+    const isAdmin = request.headers.get('Referer')?.includes(`${url.origin}/admin`);
     if (isAdmin) {
         return response;
     }
@@ -201,13 +195,13 @@ export async function onRequest(context) {
         return response;
     } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
         const referer = request.headers.get('Referer');
-        const redirectUrl = referer ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : `${origin}/block-img.html`;
+        const redirectUrl = referer ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : `${url.origin}/block-img.html`;
         return Response.redirect(redirectUrl, 302);
     }
 
     // 8. 全局白名单模式
     if (env.WhiteList_Mode === "true") {
-        return Response.redirect(`${origin}/whitelist-on.html`, 302);
+        return Response.redirect(`${url.origin}/whitelist-on.html`, 302);
     }
 
     // 9. 内容审核
@@ -224,7 +218,7 @@ export async function onRequest(context) {
                     
                     if (moderateData.rating_label === "adult") {
                         await env.img_url.put(params.id, "", { metadata });
-                        return Response.redirect(`${origin}/block-img.html`, 302);
+                        return Response.redirect(`${url.origin}/block-img.html`, 302);
                     }
                 }
             }
