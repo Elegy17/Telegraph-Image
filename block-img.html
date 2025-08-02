@@ -1,31 +1,380 @@
 <!DOCTYPE html>
-<html class="no-js" lang="en-US" style="
-    height: 100%;
-">
+<html lang="zh-CN">
 <head>
-<title>The Image is blocked | Telegraph-Image</title>
-<meta charset="UTF-8">
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta http-equiv="X-UA-Compatible" content="IE=Edge">
-<meta name="robots" content="noindex, nofollow">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{margin:0;padding:0}</style>
-<script src="https://js.sentry-cdn.com/219f636ac7bde5edab2c3e16885cb535.min.js" crossorigin="anonymous"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片审核未通过 | Telegraph-Image</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://js.sentry-cdn.com/219f636ac7bde5edab2c3e16885cb535.min.js" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --primary: #e63946;
+            --primary-light: #f28482;
+            --secondary: #9d0208;
+            --light: #fff9fb;
+            --dark: #212529;
+            --gray: #6c757d;
+            --border-radius: 16px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #fff9fb, #fef6f8);
+            color: var(--dark);
+            line-height: 1.6;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 40px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+            border: 1px solid rgba(230, 57, 70, 0.2);
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .icon-container {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            font-size: 60px;
+            box-shadow: 0 8px 20px rgba(230, 57, 70, 0.3);
+        }
+        
+        h1 {
+            color: var(--primary);
+            font-size: 36px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .message {
+            margin-bottom: 30px;
+            text-align: center;
+            padding: 0 10px;
+        }
+        
+        .message p {
+            margin: 20px 0;
+            font-size: 18px;
+            color: var(--dark);
+            line-height: 1.8;
+        }
+        
+        .cn-message {
+            font-weight: 500;
+            font-size: 20px;
+            position: relative;
+            padding: 15px 20px;
+            background-color: rgba(230, 57, 70, 0.05);
+            border-radius: 10px;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .en-message {
+            color: var(--gray);
+            font-style: italic;
+            padding: 15px 20px;
+            background-color: rgba(230, 57, 70, 0.03);
+            border-radius: 10px;
+        }
+        
+        .warning-box {
+            background: linear-gradient(135deg, #fff9fb, #fff0f2);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+            border: 1px dashed var(--primary-light);
+            text-align: left;
+        }
+        
+        .warning-box h3 {
+            color: var(--secondary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .warning-box ul {
+            list-style: none;
+            padding-left: 10px;
+        }
+        
+        .warning-box li {
+            margin: 12px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        
+        .warning-box li:before {
+            content: "•";
+            color: var(--primary);
+            font-size: 24px;
+            position: absolute;
+            left: 0;
+            top: -4px;
+        }
+        
+        .footer {
+            color: var(--gray);
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+            position: relative;
+        }
+        
+        .footer a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: var(--transition);
+        }
+        
+        .footer a:hover {
+            color: var(--secondary);
+        }
+        
+        .footer a:hover::after {
+            width: 100%;
+        }
+        
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 14px 28px;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(230, 57, 70, 0.4);
+        }
+        
+        .btn-secondary {
+            background-color: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        
+        .btn-secondary:hover {
+            background-color: rgba(230, 57, 70, 0.05);
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+        
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+        
+        @media (max-width: 768px) {
+            .card {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 28px;
+            }
+            
+            .message p {
+                font-size: 16px;
+            }
+            
+            .icon-container {
+                width: 90px;
+                height: 90px;
+                font-size: 40px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        .policy-highlight {
+            background: linear-gradient(transparent 60%, rgba(230, 57, 70, 0.2) 40%);
+            font-weight: 600;
+            padding: 0 5px;
+        }
+    </style>
 </head>
-<body style="
-    height: 100%;
-">
-    <div style="display: flex;flex-direction: column;align-content: center;justify-content: center;align-items: center;height: 100%;text-align: center;">
-<div>
-    抱歉，当前图片未能通过审查，可能含有不良内容，故无法进行加载。
-    <br>
-    Sorry, the current image failed to pass the review and may contain undesirable content, so it cannot be loaded.
-</div>
-<br>
-<div>Powered By: <span><a style="
-    color: cornflowerblue;"
-    href="https://github.com/cf-pages/Telegraph-Image">Telegraph-Image</a></span></div>
-</div>
-
-
-</body></html>
+<body>
+    <div class="container">
+        <div class="card pulse">
+            <div class="icon-container">
+                <i class="fas fa-ban"></i>
+            </div>
+            
+            <h1>图片审核未通过</h1>
+            
+            <div class="message">
+                <p class="cn-message">抱歉，当前图片未能通过审查，可能含有不良内容，故无法进行加载。</p>
+                <p class="en-message">Sorry, the current image failed to pass the review and may contain undesirable content, so it cannot be loaded.</p>
+            </div>
+            
+            <div class="warning-box">
+                <h3><i class="fas fa-exclamation-triangle"></i> 内容审核政策说明</h3>
+                <ul>
+                    <li>我们严格遵守互联网内容安全规范，确保平台内容健康合法</li>
+                    <li>图片可能因包含暴力、裸露、敏感信息或其他违规内容被阻止</li>
+                    <li>所有上传内容均经过自动化系统与人工审核双重检查</li>
+                    <li>如果您认为这是误判，可通过申诉渠道反馈</li>
+                </ul>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-primary">
+                    <i class="fas fa-home"></i> 返回首页
+                </button>
+                <button class="btn btn-secondary">
+                    <i class="fas fa-question-circle"></i> 审核政策详情
+                </button>
+                <button class="btn btn-secondary">
+                    <i class="fas fa-redo-alt"></i> 重新上传图片
+                </button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Powered By: <a href="https://github.com/cf-pages/Telegraph-Image">Telegraph-Image</a>
+        </div>
+    </div>
+    
+    <script>
+        // 添加交互效果
+        document.addEventListener('DOMContentLoaded', function() {
+            const card = document.querySelector('.card');
+            const buttons = document.querySelectorAll('.btn');
+            
+            // 卡片加载动画
+            setTimeout(() => {
+                card.classList.add('pulse');
+            }, 300);
+            
+            // 按钮点击效果
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    this.classList.add('shake');
+                    setTimeout(() => {
+                        this.classList.remove('shake');
+                    }, 500);
+                    
+                    if(this.querySelector('.fa-home')) {
+                        // 返回首页
+                        alert('即将返回首页...');
+                    }
+                    else if(this.querySelector('.fa-question-circle')) {
+                        // 查看政策
+                        const policyBox = document.querySelector('.warning-box');
+                        policyBox.style.backgroundColor = 'rgba(230, 57, 70, 0.05)';
+                        setTimeout(() => {
+                            policyBox.style.backgroundColor = '';
+                        }, 1000);
+                    }
+                    else if(this.querySelector('.fa-redo-alt')) {
+                        // 重新上传
+                        card.classList.remove('pulse');
+                        setTimeout(() => {
+                            card.classList.add('pulse');
+                        }, 100);
+                    }
+                });
+            });
+            
+            // 高亮政策关键词
+            const highlights = document.querySelectorAll('.policy-highlight');
+            highlights.forEach(hl => {
+                hl.style.animationDelay = `${Math.random() * 0.5}s`;
+            });
+        });
+    </script>
+</body>
+</html>
