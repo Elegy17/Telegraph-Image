@@ -4,12 +4,12 @@ export async function onRequest(context) {
     const method = request.method;
     
     // 0. 常量定义
-    const BLOCK_IMAGE = "https://static-res.pages.dev/teleimage/img-block-compressed.png";
+    const BLOCK_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/私人图床 🚫 未通过审查.png";
     const BLOCK_PAGE = `${url.origin}/block-img.html`;
-    const WAIT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_052417.png";
+    const WAIT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/私人图床 ⏳ 审核中.png";  
     const WAIT_PAGE = `${url.origin}/whitelist-on.html`;
-    const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
-    const REDIRECT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_070454.png";
+    const HOTLINK_BLOCK_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/私人图床 ⛔ 禁止访问.png";
+    const REDIRECT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/私人图床 🚧 REDIRECT.png";
     
     // 1. 上传域名验证 (仅POST)
     if (method === "POST" && env.UPLOAD_DOMAINS) {
