@@ -142,98 +142,111 @@ export async function onRequest(context) {
     const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
     const REDIRECT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_070454.png";
     
-    // 处理空Referer
-    if (!referer) {
-        switch(EMPTY_REFERER_ACTION) {
-            case "ALLOW":
-                // ALLOW模式：继续处理请求
-                break;
-                
-            case "REDIRECT":
-                // 判断访问类型
-                const userAgent = request.headers.get('User-Agent') || '';
-                const isBrowser = userAgent.includes('Mozilla') && 
-                                 !userAgent.includes('bot') && 
-                                 !userAgent.includes('Discord') && 
-                                 !userAgent.includes('Telegram');
-                
-                if (isBrowser) {
-                    // 浏览器直接访问：重定向到首页
-                    return Response.redirect(url.origin, 302);
-                } else {
-                    // MD等软件：显示重定向图片
-                    return Response.redirect(REDIRECT_IMAGE, 302);
-                }
-                
-            case "BLOCK":
-            default:
-                // BLOCK模式：显示防盗链图片
-                return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
-        }
-    } 
-    // 处理有Referer的情况
-    else {
-        try {
-            const refererUrl = new URL(referer);
-            const refererHost = refererUrl.hostname.toLowerCase();
-            let shouldBlock = false;
-            let isAllowed = false;
-            
-            // 白名单模式：只允许列表中的域名
-            if (HOTLINK_MODE === "WHITELIST" && env.ALLOWED_DOMAINS) {
-                const allowedDomains = env.ALLOWED_DOMAINS.split(",");
-                
-                for (const domain of allowedDomains) {
-                    const cleanDomain = domain.trim().toLowerCase();
+    // 检查是否在白名单图片中
+    const isWhiteListImage = metadata.ListType === "White";
+    
+    if (HOTLINK_MODE === "WHITELIST" || HOTLINK_MODE === "BLACKLIST") {
+        const referer = request.headers.get('Referer');
+        
+        // 处理空Referer
+        if (!referer) {
+            switch(EMPTY_REFERER_ACTION) {
+                case "ALLOW":
+                    // ALLOW模式：继续处理请求
+                    break;
                     
-                    if (cleanDomain.startsWith("*.")) {
-                        const baseDomain = cleanDomain.slice(2);
-                        if (refererHost === baseDomain || refererHost.endsWith(`.${baseDomain}`)) {
+                case "REDIRECT":
+                    // REDIRECT模式：浏览器访问重定向到首页，MD显示图片
+                    // 判断访问类型
+                    const userAgent = request.headers.get('User-Agent') || '';
+                    const isMDClient = userAgent.includes('Discord') || 
+                                      userAgent.includes('Telegram') ||
+                                      userAgent.includes('Markdown') ||
+                                      userAgent.includes('Mozilla/5.0') && 
+                                      !userAgent.includes('Chrome') && 
+                                      !userAgent.includes('Safari');
+                    
+                    if (isMDClient) {
+                        // MD等软件：显示重定向图片
+                        return Response.redirect(REDIRECT_IMAGE, 302);
+                    } else {
+                        // 浏览器直接访问：重定向到首页
+                        return Response.redirect(url.origin, 302);
+                    }
+                    
+                case "BLOCK":
+                default:
+                    // BLOCK模式：显示防盗链图片
+                    return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
+            }
+        } 
+        // 处理有Referer的情况
+        else {
+            try {
+                const refererUrl = new URL(referer);
+                const refererHost = refererUrl.hostname.toLowerCase();
+                let shouldBlock = false;
+                
+                // 白名单模式：只允许列表中的域名
+                if (HOTLINK_MODE === "WHITELIST" && env.ALLOWED_DOMAINS) {
+                    const allowedDomains = env.ALLOWED_DOMAINS.split(",");
+                    let isAllowed = false;
+                    
+                    for (const domain of allowedDomains) {
+                        const cleanDomain = domain.trim().toLowerCase();
+                        
+                        if (cleanDomain.startsWith("*.")) {
+                            const baseDomain = cleanDomain.slice(2);
+                            if (refererHost === baseDomain || refererHost.endsWith(`.${baseDomain}`)) {
+                                isAllowed = true;
+                                break;
+                            }
+                        } else if (refererHost === cleanDomain) {
                             isAllowed = true;
                             break;
                         }
-                    } else if (refererHost === cleanDomain) {
-                        isAllowed = true;
-                        break;
+                    }
+                    
+                    if (!isAllowed) {
+                        shouldBlock = true;
                     }
                 }
                 
-                if (!isAllowed) {
-                    shouldBlock = true;
-                }
-            }
-            
-            // 黑名单模式：只拦截列表中的域名
-            if (HOTLINK_MODE === "BLACKLIST" && env.BLOCKED_DOMAINS) {
-                const blockedDomains = env.BLOCKED_DOMAINS.split(",");
-                
-                for (const domain of blockedDomains) {
-                    const cleanDomain = domain.trim().toLowerCase();
+                // 黑名单模式：只拦截列表中的域名
+                if (HOTLINK_MODE === "BLACKLIST" && env.BLOCKED_DOMAINS) {
+                    const blockedDomains = env.BLOCKED_DOMAINS.split(",");
                     
-                    if (cleanDomain.startsWith("*.")) {
-                        const baseDomain = cleanDomain.slice(2);
-                        if (refererHost === baseDomain || refererHost.endsWith(`.${baseDomain}`)) {
+                    for (const domain of blockedDomains) {
+                        const cleanDomain = domain.trim().toLowerCase();
+                        
+                        if (cleanDomain.startsWith("*.")) {
+                            const baseDomain = cleanDomain.slice(2);
+                            if (refererHost === baseDomain || refererHost.endsWith(`.${baseDomain}`)) {
+                                shouldBlock = true;
+                                break;
+                            }
+                        } else if (refererHost === cleanDomain) {
                             shouldBlock = true;
                             break;
                         }
-                    } else if (refererHost === cleanDomain) {
-                        shouldBlock = true;
-                        break;
                     }
                 }
+                
+                // 对于白名单图片，只有不在允许列表时才应用防盗链
+                if (shouldBlock && !isWhiteListImage) {
+                    return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
+                }
+                
+            } catch (e) {
+                if (!isWhiteListImage) {
+                    return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
+                }
             }
-            
-            if (shouldBlock) {
-                return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
-            }
-            
-        } catch (e) {
-            return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
         }
     }
 
-    // 9. 白名单图片放行 - 在防盗链检查之后
-    if (metadata.ListType === "White") {
+    // 9. 白名单图片检查 - 放在防盗链之后
+    if (isWhiteListImage) {
         return response;
     }
 
