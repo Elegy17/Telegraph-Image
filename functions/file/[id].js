@@ -129,9 +129,13 @@ export async function onRequest(context) {
                 break;
                 
             case "REDIRECT":
-                const ua = request.headers.get('User-Agent') || '';
-                const isBrowser = /mozilla|chrome|safari|edge/i.test(ua) && 
-                                !/bot|discord|telegram|whatsapp/i.test(ua);
+                // 修复点：更精确的User-Agent检测
+                const ua = (request.headers.get('User-Agent') || '').toLowerCase();
+                const isBrowser = !ua.includes('telegrambot') && 
+                                !ua.includes('discordbot') && 
+                                !ua.includes('twitterbot') &&
+                                !ua.includes('whatsapp') &&
+                                (ua.includes('mozilla') || ua.includes('chrome') || ua.includes('safari'));
                 
                 return Response.redirect(isBrowser ? url.origin : REDIRECT_IMAGE, 302);
                 
