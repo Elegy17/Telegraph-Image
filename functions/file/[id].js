@@ -7,12 +7,29 @@ export async function onRequest(context) {
 
     const url = new URL(request.url);
     const method = request.method;
+    const referer = request.headers.get('Referer');
+    const userAgent = request.headers.get('User-Agent') || '';
     
-    // 1. 上传限制功能
+    // 1. 管理员检查 - 最优先
+    const isAdmin = referer?.includes(`${url.origin}/admin`);
+    if (isAdmin) {
+        // 管理员跳过所有限制
+        return handleImageRequest(request, env, url);
+    }
+
+    // 2. 全局白名单模式（审核模式）
+    if (env.WhiteList_Mode === "true") {
+        if (referer) {
+            // MD等嵌入场景：显示等待审核图片
+            return Response.redirect("https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_052417.png", 302);
+        } else {
+            // 浏览器直接访问：显示HTML页面
+            return Response.redirect(`${url.origin}/whitelist-on.html`, 302);
+        }
+    }
+
+    // 3. 上传限制功能
     if (method === "POST" && env.UPLOAD_DOMAINS) {
-        const domains = env.UPLOAD_DOMAINS.split(",");
-        const referer = request.headers.get('Referer');
-        
         if (!referer) {
             return new Response('权限不足', { status: 403 });
         }
@@ -20,6 +37,7 @@ export async function onRequest(context) {
         try {
             const refererUrl = new URL(referer);
             const refererHost = refererUrl.hostname.toLowerCase();
+            const domains = env.UPLOAD_DOMAINS.split(",");
             let isAllowed = false;
             
             for (const domain of domains) {
@@ -45,7 +63,149 @@ export async function onRequest(context) {
         }
     }
 
-    // 2. 图片处理逻辑
+    // 4. 处理图片内容标记（KV检查）
+    const imageMetadata = await getImageMetadata(env, params.id);
+    
+    // 4.1 白名单图片直接返回
+    if (imageMetadata.ListType === "White") {
+        return handleImageRequest(request, env, url);
+    }
+    
+    // 4.2 黑名单/成人内容图片拦截
+    if (imageMetadata.ListType === "Block" || imageMetadata.Label === "adult") {
+        if (referer) {
+            return Response.redirect("https://static-res.pages.dev/teleimage/img-block-compressed.png", 302);
+        } else {
+            return Response.redirect(`${url.origin}/block-img.html`, 302);
+        }
+    }
+
+    // 5. 双模式防盗链系统
+    const HOTLINK_MODE = (env.HOTLINK_MODE || "WHITELIST").toUpperCase();
+    const EMPTY_REFERER_ACTION = (env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase();
+    
+    // 处理空Referer情况
+    if (!referer) {
+        switch(EMPTY_REFERER_ACTION) {
+            case "ALLOW":
+                // 允许访问
+                break;
+                
+            case "REDIRECT":
+                // 浏览器直接访问：重定向到首页
+                if (isBrowserUserAgent(userAgent)) {
+                    return Response.redirect(url.origin, 302);
+                } 
+                // MD等嵌入场景：显示重定向图片
+                else {
+                    return Response.redirect("https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_070454.png", 302);
+                }
+                
+            case "BLOCK":
+            default:
+                // 显示防盗链图片
+                return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
+        }
+    } 
+    // 处理有Referer的情况
+    else {
+        try {
+            const refererUrl = new URL(referer);
+            const refererHost = refererUrl.hostname.toLowerCase();
+            let shouldBlock = false;
+            
+            // 白名单模式：只允许列表中的域名
+            if (HOTLINK_MODE === "WHITELIST" && env.ALLOWED_DOMAINS) {
+                const allowedDomains = env.ALLOWED_DOMAINS.split(",");
+                let isAllowed = false;
+                
+                for (const domain of allowedDomains) {
+                    const cleanDomain = domain.trim().toLowerCase();
+                    
+                    if (cleanDomain.startsWith("*.")) {
+                        const baseDomain = cleanDomain.slice(2);
+                        if (refererHost === baseDomain || refererHost.endsWith(`.${baseDomain}`)) {
+                            isAllowed = true;
+                            break;
+                        }
+                    } else if (refererHost === cleanDomain) {
+                        isAllowed = true;
+                        break;
+                    }
+                }
+                
+                if (!isAllowed) {
+                    shouldBlock = true;
+                }
+            }
+            
+            // 黑名单模式：只拦截列表中的域名
+            if (HOTLINK_MODE === "BLACKLIST" && env.BLOCKED_DOMAINS) {
+                const blockedDomains = env.BLOCKED_DOMAINS.split(",");
+                
+                for (const domain of blockedDomains) {
+                    const cleanDomain = domain.trim().toLowerCase();
+                    
+                    if (cleanDomain.startsWith("*.")) {
+                        const baseDomain = cleanDomain.slice(2);
+                        if (refererHost === baseDomain || refererHost.endsWith(`.${baseDomain}`)) {
+                            shouldBlock = true;
+                            break;
+                        }
+                    } else if (refererHost === cleanDomain) {
+                        shouldBlock = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (shouldBlock) {
+                return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
+            }
+            
+        } catch (e) {
+            return Response.redirect("https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png", 302);
+        }
+    }
+
+    // 6. 内容审核
+    if (env.ModerateContentApiKey) {
+        try {
+            const moderateUrl = `https://api.moderatecontent.com/moderate/?key=${env.ModerateContentApiKey}&url=https://telegra.ph${url.pathname}${url.search}`;
+            const moderateResponse = await fetch(moderateUrl);
+
+            if (moderateResponse.ok) {
+                const moderateData = await moderateResponse.json();
+                
+                if (moderateData?.rating_label) {
+                    // 更新元数据
+                    await env.img_url.put(params.id, "", { 
+                        metadata: { 
+                            ...imageMetadata, 
+                            Label: moderateData.rating_label 
+                        } 
+                    });
+                    
+                    if (moderateData.rating_label === "adult") {
+                        if (referer) {
+                            return Response.redirect("https://static-res.pages.dev/teleimage/img-block-compressed.png", 302);
+                        } else {
+                            return Response.redirect(`${url.origin}/block-img.html`, 302);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            // 静默失败
+        }
+    }
+
+    // 7. 返回图片
+    return handleImageRequest(request, env, url);
+}
+
+// 辅助函数：处理图片请求
+async function handleImageRequest(request, env, url) {
     let fileUrl = 'https://telegra.ph/' + url.pathname + url.search;
     
     // 处理Telegram Bot上传的文件
@@ -61,216 +221,57 @@ export async function onRequest(context) {
         }
     }
 
-    const response = await fetch(fileUrl, {
+    return fetch(fileUrl, {
         method: request.method,
         headers: request.headers,
         body: request.body,
     });
+}
 
-    if (!response.ok) {
-        return response;
-    }
-
-    // 3. 管理员绕过检查
-    const isAdmin = request.headers.get('Referer')?.includes(`${url.origin}/admin`);
-    if (isAdmin) {
-        return response;
-    }
-
-    // 4. KV存储检查
+// 辅助函数：获取图片元数据
+async function getImageMetadata(env, id) {
     if (!env.img_url) {
-        return response;
+        return {
+            ListType: "None",
+            Label: "None"
+        };
     }
 
-    // 5. 元数据处理
-    let record = await env.img_url.getWithMetadata(params.id);
+    const record = await env.img_url.getWithMetadata(id);
     
     if (!record || !record.metadata) {
-        record = {
-            metadata: {
-                ListType: "None",
-                Label: "None",
-                TimeStamp: Date.now(),
-                liked: false,
-                fileName: params.id,
-                fileSize: 0,
-            }
+        // 初始化新记录
+        const newMetadata = {
+            ListType: "None",
+            Label: "None",
+            TimeStamp: Date.now(),
+            liked: false,
+            fileName: id,
+            fileSize: 0,
         };
-        await env.img_url.put(params.id, "", { metadata: record.metadata });
+        
+        await env.img_url.put(id, "", { metadata: newMetadata });
+        return newMetadata;
     }
 
-    const metadata = {
+    return {
         ListType: record.metadata.ListType || "None",
         Label: record.metadata.Label || "None",
         TimeStamp: record.metadata.TimeStamp || Date.now(),
         liked: record.metadata.liked !== undefined ? record.metadata.liked : false,
-        fileName: record.metadata.fileName || params.id,
+        fileName: record.metadata.fileName || id,
         fileSize: record.metadata.fileSize || 0,
     };
+}
 
-    // 6. 图片黑白名单处理
-    if (metadata.ListType === "White") {
-        // 白名单图片直接返回
-        return response;
-    } else if (metadata.ListType === "Block" || metadata.Label === "adult") {
-        const referer = request.headers.get('Referer');
-        // 内容拦截图片
-        const redirectUrl = referer 
-            ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" 
-            : `${url.origin}/block-img.html`;
-        return Response.redirect(redirectUrl, 302);
-    }
-
-    // 7. 全局白名单模式处理
-    if (env.WhiteList_Mode && env.WhiteList_Mode === "true") {
-        const referer = request.headers.get('Referer');
-        // 使用您提供的等待审核图片
-        const WAIT_FOR_REVIEW_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_052417.png";
-        
-        // 有Referer时返回图片（适合MD嵌入）
-        if (referer) {
-            return Response.redirect(WAIT_FOR_REVIEW_IMAGE, 302);
-        } 
-        // 无Referer时返回HTML页面（适合直接访问）
-        else {
-            return Response.redirect(`${url.origin}/whitelist-on.html`, 302);
-        }
-    }
-
-    // 8. 双模式防盗链系统
-    const HOTLINK_MODE = (env.HOTLINK_MODE || "WHITELIST").toUpperCase();
-    const EMPTY_REFERER_ACTION = (env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase();
-    
-    // 自定义图片
-    const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
-    const REDIRECT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_070454.png";
-    
-    if (HOTLINK_MODE === "WHITELIST" || HOTLINK_MODE === "BLACKLIST") {
-        const referer = request.headers.get('Referer');
-        
-        // 处理空Referer
-        if (!referer) {
-            switch(EMPTY_REFERER_ACTION) {
-                case "ALLOW":
-                    // ALLOW模式：继续处理请求
-                    break;
-                    
-                case "REDIRECT":
-                    // REDIRECT模式：浏览器访问重定向到首页，MD显示图片
-                    // 判断访问类型
-                    const userAgent = request.headers.get('User-Agent') || '';
-                    const isBrowser = userAgent.includes('Mozilla') && 
-                                     !userAgent.includes('bot') && 
-                                     !userAgent.includes('Discord') && 
-                                     !userAgent.includes('Telegram');
-                    
-                    if (isBrowser) {
-                        // 浏览器直接访问：重定向到首页
-                        return Response.redirect(url.origin, 302);
-                    } else {
-                        // MD等软件：显示重定向图片
-                        return Response.redirect(REDIRECT_IMAGE, 302);
-                    }
-                    
-                case "BLOCK":
-                default:
-                    // BLOCK模式：显示防盗链图片
-                    return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
-            }
-        } 
-        // 处理有Referer的情况
-        else {
-            try {
-                const refererUrl = new URL(referer);
-                const refererHost = refererUrl.hostname.toLowerCase();
-                let shouldBlock = false;
-                
-                // 白名单模式：只允许列表中的域名
-                if (HOTLINK_MODE === "WHITELIST" && env.ALLOWED_DOMAINS) {
-                    const allowedDomains = env.ALLOWED_DOMAINS.split(",");
-                    let isAllowed = false;
-                    
-                    for (const domain of allowedDomains) {
-                        const cleanDomain = domain.trim().toLowerCase();
-                        
-                        if (cleanDomain.startsWith("*.")) {
-                            const baseDomain = cleanDomain.slice(2);
-                            if (refererHost === baseDomain || refererHost.endsWith(`.${baseDomain}`)) {
-                                isAllowed = true;
-                                break;
-                            }
-                        } else if (refererHost === cleanDomain) {
-                            isAllowed = true;
-                            break;
-                        }
-                    }
-                    
-                    if (!isAllowed) {
-                        shouldBlock = true;
-                    }
-                }
-                
-                // 黑名单模式：只拦截列表中的域名
-                if (HOTLINK_MODE === "BLACKLIST" && env.BLOCKED_DOMAINS) {
-                    const blockedDomains = env.BLOCKED_DOMAINS.split(",");
-                    
-                    for (const domain of blockedDomains) {
-                        const cleanDomain = domain.trim().toLowerCase();
-                        
-                        if (cleanDomain.startsWith("*.")) {
-                            const baseDomain = cleanDomain.slice(2);
-                            if (refererHost === baseDomain || refererHost.endsWith(`.${baseDomain}`)) {
-                                shouldBlock = true;
-                                break;
-                            }
-                        } else if (refererHost === cleanDomain) {
-                            shouldBlock = true;
-                            break;
-                        }
-                    }
-                }
-                
-                if (shouldBlock) {
-                    return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
-                }
-                
-            } catch (e) {
-                return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
-            }
-        }
-    }
-
-    // 9. 内容审核
-    if (env.ModerateContentApiKey) {
-        try {
-            const moderateUrl = `https://api.moderatecontent.com/moderate/?key=${env.ModerateContentApiKey}&url=https://telegra.ph${url.pathname}${url.search}`;
-            const moderateResponse = await fetch(moderateUrl);
-
-            if (moderateResponse.ok) {
-                const moderateData = await moderateResponse.json();
-                
-                if (moderateData && moderateData.rating_label) {
-                    metadata.Label = moderateData.rating_label;
-                    
-                    if (moderateData.rating_label === "adult") {
-                        await env.img_url.put(params.id, "", { metadata });
-                        // 内容拦截图片
-                        const referer = request.headers.get('Referer');
-                        const redirectUrl = referer 
-                            ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" 
-                            : `${url.origin}/block-img.html`;
-                        return Response.redirect(redirectUrl, 302);
-                    }
-                }
-            }
-        } catch (error) {
-            // 静默失败
-        }
-    }
-
-    // 10. 返回图片
-    await env.img_url.put(params.id, "", { metadata });
-    return response;
+// 辅助函数：检测浏览器用户代理
+function isBrowserUserAgent(userAgent) {
+    return userAgent.includes('Mozilla') && 
+           !userAgent.includes('bot') && 
+           !userAgent.includes('Discord') && 
+           !userAgent.includes('Telegram') &&
+           !userAgent.includes('curl') &&
+           !userAgent.includes('wget');
 }
 
 // 辅助函数：获取Telegram文件路径
