@@ -129,23 +129,8 @@ export async function onRequest(context) {
                 break;
                 
             case "REDIRECT":
-                const ua = request.headers.get('User-Agent') || '';
-                const isBrowser = /mozilla|chrome|safari|edge|firefox/i.test(ua) && 
-                                !/bot|discord|telegram|whatsapp|slack|facebook|twitter|linkedin/i.test(ua);
-                
-                // 修复：直接返回重定向图片内容，避免二次重定向
-                if (!isBrowser) {
-                    const imgResponse = await fetch(REDIRECT_IMAGE);
-                    return new Response(imgResponse.body, {
-                        status: 200,
-                        headers: {
-                            'Content-Type': imgResponse.headers.get('Content-Type'),
-                            'Cache-Control': 'public, max-age=86400'
-                        }
-                    });
-                } else {
-                    return Response.redirect(url.origin, 302);
-                }
+                // 修复：统一重定向到指定图片，不区分浏览器类型
+                return Response.redirect(REDIRECT_IMAGE, 302);
                 
             case "BLOCK":
             default:
