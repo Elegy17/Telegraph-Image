@@ -5,7 +5,7 @@ export async function onRequest(context) {
     
     // 0. 常量定义
     const BLOCK_IMAGE = "https://static-res.pages.dev/teleimage/img-block-compressed.png";
-    const BLOCK_PAGE = `${url.origin}/block-img.html`;  
+    const BLOCK_PAGE = `${url.origin}/block-img.html`;
     const WAIT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_052417.png";
     const WAIT_PAGE = `${url.origin}/whitelist-on.html`;
     const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
@@ -130,11 +130,22 @@ export async function onRequest(context) {
                 
             case "REDIRECT":
                 const ua = request.headers.get('User-Agent') || '';
-                // 优化非浏览器检测逻辑
                 const isBrowser = /mozilla|chrome|safari|edge|firefox/i.test(ua) && 
-                                !/bot|crawl|spider|slurp|search|embed|iframe|discord|telegram|whatsapp|facebook/i.test(ua);
+                                !/bot|discord|telegram|whatsapp|slack|facebook|twitter|linkedin/i.test(ua);
                 
-                return Response.redirect(isBrowser ? url.origin : REDIRECT_IMAGE, 302);
+                // 修复：直接返回重定向图片内容，避免二次重定向
+                if (!isBrowser) {
+                    const imgResponse = await fetch(REDIRECT_IMAGE);
+                    return new Response(imgResponse.body, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': imgResponse.headers.get('Content-Type'),
+                            'Cache-Control': 'public, max-age=86400'
+                        }
+                    });
+                } else {
+                    return Response.redirect(url.origin, 302);
+                }
                 
             case "BLOCK":
             default:
