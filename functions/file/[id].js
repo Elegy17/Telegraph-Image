@@ -5,7 +5,7 @@ export async function onRequest(context) {
     
     // 0. 常量定义
     const BLOCK_IMAGE = "https://static-res.pages.dev/teleimage/img-block-compressed.png";
-    const BLOCK_PAGE = `${url.origin}/block-img.html`;
+    const BLOCK_PAGE = `${url.origin}/block-img.html`;  
     const WAIT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_052417.png";
     const WAIT_PAGE = `${url.origin}/whitelist-on.html`;
     const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
@@ -129,13 +129,10 @@ export async function onRequest(context) {
                 break;
                 
             case "REDIRECT":
-                // 修复点：更精确的User-Agent检测
-                const ua = (request.headers.get('User-Agent') || '').toLowerCase();
-                const isBrowser = !ua.includes('telegrambot') && 
-                                !ua.includes('discordbot') && 
-                                !ua.includes('twitterbot') &&
-                                !ua.includes('whatsapp') &&
-                                (ua.includes('mozilla') || ua.includes('chrome') || ua.includes('safari'));
+                const ua = request.headers.get('User-Agent') || '';
+                // 优化非浏览器检测逻辑
+                const isBrowser = /mozilla|chrome|safari|edge|firefox/i.test(ua) && 
+                                !/bot|crawl|spider|slurp|search|embed|iframe|discord|telegram|whatsapp|facebook/i.test(ua);
                 
                 return Response.redirect(isBrowser ? url.origin : REDIRECT_IMAGE, 302);
                 
