@@ -2,31 +2,46 @@ export async function onRequest(context) {
     const { request, env, params } = context;
     const url = new URL(request.url);
     const method = request.method;
+    const referer = request.headers.get('Referer');
+    const userAgent = request.headers.get('User-Agent') || '';
+    const refererHost = referer ? (new URL(referer)).hostname.toLowerCase() : null;
 
-    // 1. 上传限制功能
+    // 判断是否为 Markdown / 嵌入式客户端
+    function isMarkdownClient(ua) {
+        return (
+            !ua.includes("Mozilla") ||
+            ua.includes("Discord") ||
+            ua.includes("Telegram") ||
+            ua.includes("curl") ||
+            ua.includes("bot") ||
+            ua.includes("github") ||
+            ua.includes("Slack")
+        );
+    }
+
+    // 防盗链辅助判断：Referer 是否应被允许
+    function isAllowedReferer(refererHost, domains) {
+        for (const domain of domains) {
+            const clean = domain.trim().toLowerCase();
+            if (clean.startsWith("*.")) {
+                const base = clean.slice(2);
+                if (refererHost === base || refererHost.endsWith(`.${base}`)) return true;
+            } else if (refererHost === clean) return true;
+        }
+        return false;
+    }
+
+    // 上传限制功能
     if (method === "POST" && env.UPLOAD_DOMAINS) {
-        const domains = env.UPLOAD_DOMAINS.split(",");
-        const referer = request.headers.get('Referer');
-
-        if (!referer) return new Response('权限不足', { status: 403 });
-
-        try {
-            const refererUrl = new URL(referer);
-            const refererHost = refererUrl.hostname.toLowerCase();
-            let isAllowed = domains.some(domain => {
-                const cleanDomain = domain.trim().toLowerCase();
-                return cleanDomain.startsWith("*.")
-                    ? refererHost === cleanDomain.slice(2) || refererHost.endsWith(`.${cleanDomain.slice(2)}`)
-                    : refererHost === cleanDomain;
-            });
-            if (!isAllowed) return new Response('权限不足', { status: 403 });
-        } catch (e) {
-            return new Response('权限不足', { status: 403 });
+        if (!refererHost || !isAllowedReferer(refererHost, env.UPLOAD_DOMAINS.split(","))) {
+            return new Response("权限不足", { status: 403 });
         }
     }
 
-    // 2. 图片路径与TG文件代理
-    let fileUrl = 'https://telegra.ph/' + url.pathname + url.search;
+    // 构造默认图片 URL
+    let fileUrl = 'https://telegra.ph' + url.pathname + url.search;
+
+    // 支持 Telegram 文件
     if (url.pathname.length > 39) {
         const fileIdParts = url.pathname.split(".")[0].split("/");
         const fileId = fileIdParts.length > 2 ? fileIdParts[2] : null;
@@ -38,20 +53,18 @@ export async function onRequest(context) {
         }
     }
 
-    const fetchResponse = await fetch(fileUrl, {
-        method: request.method,
+    const response = await fetch(fileUrl, {
+        method,
         headers: request.headers,
-        body: request.body,
+        body: request.body
     });
 
-    if (!fetchResponse.ok) return fetchResponse;
+    // 管理后台绕过所有防护
+    if (referer && referer.includes(`${url.origin}/admin`)) {
+        return response;
+    }
 
-    // 3. 管理员绕过
-    if (request.headers.get('Referer')?.includes(`${url.origin}/admin`)) return fetchResponse;
-
-    // 4. KV元数据处理
-    if (!env.img_url) return fetchResponse;
-
+    // 加载 KV 元数据
     let record = await env.img_url.getWithMetadata(params.id);
     if (!record || !record.metadata) {
         record = {
@@ -66,131 +79,123 @@ export async function onRequest(context) {
         };
         await env.img_url.put(params.id, "", { metadata: record.metadata });
     }
-    const metadata = { ...record.metadata };
 
-    // 5. 审查标签和黑白名单预处理
-    if (metadata.ListType === "Block" || metadata.Label === "adult") {
-        const referer = request.headers.get('Referer');
-        const redirectUrl = referer
-            ? "https://static-res.pages.dev/teleimage/img-block-compressed.png"
-            : `${url.origin}/block-img.html`;
-        return Response.redirect(redirectUrl, 302);
-    }
+    const metadata = {
+        ListType: record.metadata.ListType || "None",
+        Label: record.metadata.Label || "None",
+        TimeStamp: record.metadata.TimeStamp || Date.now(),
+        liked: record.metadata.liked !== undefined ? record.metadata.liked : false,
+        fileName: record.metadata.fileName || params.id,
+        fileSize: record.metadata.fileSize || 0,
+    };
 
-    // 6. Global Whitelist_Mode
-    const referer = request.headers.get('Referer');
-    const refererHost = referer ? new URL(referer).hostname.toLowerCase() : null;
-    const userAgent = request.headers.get('User-Agent') || '';
-    const isMarkdown = isMarkdownAccess(userAgent);
-
-    if (env.WhiteList_Mode === "true") {
-        const whitelist = (env.ALLOWED_DOMAINS || '').split(',');
-        if (!refererHost || !checkDomainList(refererHost, whitelist)) {
-            return Response.redirect(
-                isMarkdown
-                    ? "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_052417.png"
-                    : `${url.origin}/whitelist-on.html`,
-                302
-            );
-        }
-    }
-
-    // 7. 防盗链处理
-    const HOTLINK_MODE = (env.HOTLINK_MODE || "WHITELIST").toUpperCase();
-    const EMPTY_REFERER_ACTION = (env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase();
-
-    const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
-    const REDIRECT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_070454.png";
-
-    const allow = shouldAllowAccess(refererHost, env, metadata, HOTLINK_MODE, userAgent);
-    if (!allow) {
-        return Response.redirect(isMarkdown ? "https://static-res.pages.dev/teleimage/img-block-compressed.png" : HOTLINK_BLOCK_IMAGE, 302);
-    }
-
-    // 8. 内容审核
+    // 内容审核处理
     if (env.ModerateContentApiKey) {
         try {
             const moderateUrl = `https://api.moderatecontent.com/moderate/?key=${env.ModerateContentApiKey}&url=https://telegra.ph${url.pathname}${url.search}`;
             const moderateResponse = await fetch(moderateUrl);
             if (moderateResponse.ok) {
                 const moderateData = await moderateResponse.json();
-                if (moderateData && moderateData.rating_label) {
+                if (moderateData?.rating_label) {
                     metadata.Label = moderateData.rating_label;
-                    if (metadata.Label === "adult") {
+                    if (moderateData.rating_label === "adult") {
                         await env.img_url.put(params.id, "", { metadata });
-                        const redirectUrl = referer
+                        const redirect = isMarkdownClient(userAgent)
                             ? "https://static-res.pages.dev/teleimage/img-block-compressed.png"
                             : `${url.origin}/block-img.html`;
-                        return Response.redirect(redirectUrl, 302);
+                        return Response.redirect(redirect, 302);
                     }
                 }
             }
-        } catch (_) {}
+        } catch (e) { /* 静默失败 */ }
     }
 
-    // 9. 返回图片
-    await env.img_url.put(params.id, "", { metadata });
-    return fetchResponse;
-}
-
-function isMarkdownAccess(userAgent) {
-    return !(userAgent.includes('Mozilla') && !userAgent.match(/bot|Telegram|Discord/i));
-}
-
-function isDomainMatch(host, pattern) {
-    if (pattern.startsWith("*.")) {
-        const base = pattern.slice(2).toLowerCase();
-        return host === base || host.endsWith(`.${base}`);
-    } else {
-        return host === pattern.toLowerCase();
-    }
-}
-
-function checkDomainList(host, domainList) {
-    return domainList.some(pattern => isDomainMatch(host, pattern.trim()));
-}
-
-function shouldAllowAccess(refererHost, env, metadata, mode, userAgent) {
-    const isMarkdown = isMarkdownAccess(userAgent);
-    const listType = metadata.ListType || "None";
-    const label = metadata.Label || "None";
-
-    if (listType === "Block" || label === "adult") return false;
-
+    // ⚪ WhiteList_Mode 审核逻辑优先级最高
     if (env.WhiteList_Mode === "true") {
-        const whitelist = (env.ALLOWED_DOMAINS || "").split(",");
-        return refererHost && checkDomainList(refererHost, whitelist);
+        const redirect = isMarkdownClient(userAgent)
+            ? "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_052417.png"
+            : `${url.origin}/whitelist-on.html`;
+        return Response.redirect(redirect, 302);
     }
 
-    if (!refererHost) {
-        switch ((env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase()) {
-            case "ALLOW": return true;
-            case "REDIRECT": return false;
-            case "BLOCK":
-            default: return false;
+    // 黑白名单处理逻辑（优先级高于防盗链）
+    if (metadata.ListType === "Block" || metadata.Label === "adult") {
+        const redirect = isMarkdownClient(userAgent)
+            ? "https://static-res.pages.dev/teleimage/img-block-compressed.png"
+            : `${url.origin}/block-img.html`;
+        return Response.redirect(redirect, 302);
+    }
+
+    if (metadata.ListType === "White") {
+        // 需要 Referer 存在 且在白名单列表中才允许
+        if (refererHost && env.ALLOWED_DOMAINS && isAllowedReferer(refererHost, env.ALLOWED_DOMAINS.split(","))) {
+            await env.img_url.put(params.id, "", { metadata });
+            return response;
+        } else {
+            // 非白名单直接拦截
+            const redirect = isMarkdownClient(userAgent)
+                ? "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png"
+                : `${url.origin}/block-img.html`;
+            return Response.redirect(redirect, 302);
         }
     }
 
-    if (mode === "WHITELIST") {
-        const whitelist = (env.ALLOWED_DOMAINS || "").split(",");
-        return checkDomainList(refererHost, whitelist);
-    } else if (mode === "BLACKLIST") {
-        const blacklist = (env.BLOCKED_DOMAINS || "").split(",");  
-        return !checkDomainList(refererHost, blacklist);
+    // 双模式防盗链系统
+    const HOTLINK_MODE = (env.HOTLINK_MODE || "WHITELIST").toUpperCase();
+    const EMPTY_REFERER_ACTION = (env.EMPTY_REFERER_ACTION || "BLOCK").toUpperCase();
+
+    const HOTLINK_BLOCK_IMAGE = "https://gcore.jsdelivr.net/gh/guicaiyue/FigureBed@master/MImg/20240321211254095.png";
+    const REDIRECT_IMAGE = "https://cdn.jsdelivr.net/gh/Elegy17/Git_Image@main/img/IMG_20250803_070454.png";
+
+    if (!referer) {
+        // 空 Referer 行为
+        switch (EMPTY_REFERER_ACTION) {
+            case "ALLOW":
+                break;
+            case "REDIRECT":
+                return Response.redirect(isMarkdownClient(userAgent) ? REDIRECT_IMAGE : url.origin, 302);
+            case "BLOCK":
+            default:
+                return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
+        }
+    } else {
+        try {
+            let shouldBlock = false;
+
+            if (HOTLINK_MODE === "WHITELIST" && env.ALLOWED_DOMAINS) {
+                if (!isAllowedReferer(refererHost, env.ALLOWED_DOMAINS.split(","))) {
+                    shouldBlock = true;
+                }
+            }
+
+            if (HOTLINK_MODE === "BLACKLIST" && env.BLOCKED_DOMAINS) {
+                if (isAllowedReferer(refererHost, env.BLOCKED_DOMAINS.split(","))) {
+                    shouldBlock = true;
+                }
+            }
+
+            if (shouldBlock) {
+                return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
+            }
+        } catch (e) {
+            return Response.redirect(HOTLINK_BLOCK_IMAGE, 302);
+        }
     }
 
-    return true;
+    // 最终成功访问，保存元数据
+    await env.img_url.put(params.id, "", { metadata });
+    return response;
 }
 
+// 获取 Telegram 文件路径
 async function getFilePath(env, file_id) {
     try {
         const apiUrl = `https://api.telegram.org/bot${env.TG_Bot_Token}/getFile?file_id=${file_id}`;
         const res = await fetch(apiUrl);
         if (!res.ok) return null;
-        const responseData = await res.json();
-        if (responseData.ok && responseData.result) return responseData.result.file_path;
-        return null;
-    } catch (_) {
+        const json = await res.json();
+        return json?.ok && json.result?.file_path ? json.result.file_path : null;
+    } catch {
         return null;
     }
 }
